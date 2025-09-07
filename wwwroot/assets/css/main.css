@@ -1,0 +1,86 @@
+ :root {
+      --ss-primary: #2a6df6;
+      --ss-dark: #0f172a; /* slate-900 */
+      --ss-muted: #64748b; /* slate-500 */
+      --ss-bg: #0b1224;
+      --ss-accent: #22c55e; /* green-500 */
+    }
+
+    body {
+      color: #0a0a0a;
+      scroll-behavior: smooth;
+      font-family: roboto !important;
+    }
+
+    /* Navbar */
+    .navbar {
+      backdrop-filter: saturate(140%) blur(8px);
+      background: rgba(255,255,255,0.85);
+    }
+    .navbar-brand img { height: 36px; width: auto; }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      min-height: 86vh;
+      display: grid;
+      align-items: center;
+      background: radial-gradient(1200px 600px at 70% 10%, rgba(42,109,246,0.08), transparent),
+                  linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      overflow: hidden;
+    }
+    .hero .home-img {
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.12);
+    }
+    .hero-badge {
+      display: inline-flex; gap: .5rem; align-items: center;
+      padding: .4rem .7rem; border-radius: 999px;
+      background: #eef2ff; color: #3730a3; font-weight: 600; font-size: .85rem;
+    }
+
+    /* Sections */
+    .section { padding: 4rem 0; }
+    @media (min-width: 992px) { .section { padding: 6rem 0; } }
+
+    /* Feature bullets */
+    .feature i { color: var(--ss-accent); }
+
+    /* Services */
+    .service-card {
+      border: 1px solid #eef2f7;
+      border-radius: 1.25rem;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .service-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.10);
+    }
+
+    /* How it works */
+    .step {
+      border-radius: 1rem;
+      border: 1px dashed #e5e7eb;
+      padding: 1.25rem;
+      height: 100%;
+      background: #fff;
+    }
+
+    /* CTA band */
+    .cta {
+      background: linear-gradient(135deg, var(--ss-primary), #0ea5e9);
+      color: #fff;
+      border-radius: 1.25rem;
+    }
+
+    /* Footer */
+    footer {
+      background: #0b1224; color:#cbd5e1;
+    }
+    footer a { color:#e2e8f0; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .ss-cat-card { cursor: pointer; border: 0; }
+.ss-cat-card .card-body { padding: .75rem .9rem; }
+.ss-cat-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.object-fit-cover { object-fit: cover; }

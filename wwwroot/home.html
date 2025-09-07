@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en" ng-app="myApp">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Service Sync – Home Services, Done Right</title>
+  <meta name="description" content="Service Sync connects you with vetted pros for home services like cleaning, lawn care, plumbing, and appliance repair with instant booking and transparent pricing." />
+
+
+  <style>
+   
+  </style>
+
+</head>
+<body ng-controller="mainController">
+  <!-- Nav -->
+  <nav class="navbar navbar-expand-lg fixed-top shadow-sm">
+    <div class="container" >
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#home">
+        <img src="assets/img/ss_logo.png" alt="Service Sync logo" />
+        <span class="fw-semibold">Service Sync</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
+          <li class="nav-item"><a class="nav-link" href="#services">Services</a></li>
+          <li class="nav-item"><a class="nav-link" href="#how">How it works</a></li>
+          <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+          <li class="nav-item ms-lg-3"><a class="btn btn-outline-primary" href="#!/register">Login</a></li>
+          <li class="nav-item ms-lg-3"><div class="btn btn-primary" ng-click="book()">Book now</div></li>
+          <!-- <a class="btn btn-outline-primary" href="#!/register">Sign in</a> -->
+           
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header id="home" class="hero section pt-5">
+    <div class="container">
+      <div class="row align-items-center gy-4">
+        <div class="col-lg-6" data-aos="fade-up">
+          <span class="hero-badge" aria-label="Tagline">
+            <i class="bi bi-stars"></i> Your Home, Our Expertise
+          </span>
+          <h1 class="display-5 fw-bold mt-3" data-aos="fade-up" data-aos-delay="50">Welcome to <span class="text-primary">Service Sync</span></h1>
+          <p class="lead text-muted" data-aos="fade-up" data-aos-delay="100">We make life easier with trusted home services — cleaning, lawn care, plumbing, appliance repair and more. Book in minutes, relax for hours.</p>
+          <div class="d-flex gap-3 mt-3" data-aos="fade-up" data-aos-delay="150">
+            <a href="#services" class="btn btn-primary btn-lg"><i class="bi bi-lightning-charge me-2"></i>Explore services</a>
+            <a href="#contact" class="btn btn-outline-secondary btn-lg"><i class="bi bi-calendar2-check me-2"></i>Schedule now</a>
+          </div>
+          <div class="d-flex flex-wrap gap-4 mt-4 text-muted small" data-aos="fade-up" data-aos-delay="200">
+            <span><i class="bi bi-shield-check me-1 text-success"></i>Vetted pros</span>
+            <span><i class="bi bi-credit-card me-1 text-success"></i>Transparent pricing</span>
+            <span><i class="bi bi-arrow-repeat me-1 text-success"></i>Easy rescheduling</span>
+          </div>
+        </div>
+        <div class="col-lg-6 text-center" data-aos="zoom-out" data-aos-delay="300">
+          <img src="assets/img/home_services.jpg" class="img-fluid home-img" alt="Home services collage" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- About -->
+  <section id="about" class="about section bg-white">
+    <div class="container">
+      <div class="row gy-4 align-items-center">
+        <div class="col-lg-6 order-lg-2" data-aos="fade-left">
+          <img src="assets/img/about-company-1.jpg" class="img-fluid rounded-4 shadow-sm" alt="Trusted professionals at work" loading="lazy"/>
+        </div>
+        <div class="col-lg-6" data-aos="fade-right" data-aos-delay="100">
+          <p class="text-uppercase text-primary fw-semibold mb-1 who-we-are">Who We Are</p>
+          <h3>Welcome to Service Sync!</h3>
+          <p class="fst-italic">We make life easier with a comprehensive range of home services delivered by vetted pros. From cleaning and lawn care to plumbing and appliance repair, we’ve got you covered.</p>
+          <ul class="list-unstyled small text-muted">
+            <li class="mb-2 feature"><i class="bi bi-check-circle me-2"></i>Trusted, background-checked professionals</li>
+            <li class="mb-2 feature"><i class="bi bi-check-circle me-2"></i>Transparent pricing & instant booking</li>
+            <li class="feature"><i class="bi bi-check-circle me-2"></i>Convenient rescheduling & reliable support</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section id="services" class="section">
+    <div class="container">
+      <div class="text-center mb-5" data-aos="fade-up">
+        <h2 class="fw-bold">Popular Services</h2>
+        <p class="text-muted">Book top-rated help for routine chores and urgent fixes.</p>
+      </div>
+      <div class="row g-4">
+        <!-- Cleaning -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="0">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-broom fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Home Cleaning</h5>
+            </div>
+            <p class="text-muted small">Standard, deep, or move-out cleaning with eco-friendly options.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $89</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Home Cleaning">Book</a>
+            </div>
+          </div>
+        </div>
+        <!-- Lawn Care -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="50">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-flower1 fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Lawn Care</h5>
+            </div>
+            <p class="text-muted small">Mowing, edging, seasonal cleanup, and routine maintenance.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $59</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Lawn Care">Book</a>
+            </div>
+          </div>
+        </div>
+        <!-- Plumbing -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="100">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-droplet fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Plumbing</h5>
+            </div>
+            <p class="text-muted small">Fix leaks, unclog drains, replace faucets, and more.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $99</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Plumbing">Book</a>
+            </div>
+          </div>
+        </div>
+        <!-- Appliances -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="150">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-cpu fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Appliance Repair</h5>
+            </div>
+            <p class="text-muted small">Washer, dryer, fridge, or oven diagnostics and repair.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $79</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Appliance Repair">Book</a>
+            </div>
+          </div>
+        </div>
+        <!-- Electrical -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="200">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-lightbulb fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Electrical</h5>
+            </div>
+            <p class="text-muted small">Fixture installs, outlet swaps, and safety inspections.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $89</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Electrical">Book</a>
+            </div>
+          </div>
+        </div>
+        <!-- Painting -->
+        <div class="col-sm-6 col-lg-4" data-aos="fade-up" data-aos-delay="250">
+          <div class="service-card p-4 h-100">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <i class="bi bi-braces-asterisk fs-3 text-primary" aria-hidden="true"></i>
+              <h5 class="mb-0">Painting</h5>
+            </div>
+            <p class="text-muted small">Interior touch-ups to full-room refreshes with prep.</p>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <span class="text-success fw-semibold">From $129</span>
+              <a class="btn btn-outline-primary btn-sm" href="#contact" aria-label="Book Painting">Book</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" class="section bg-light">
+    <div class="container">
+      <div class="text-center mb-5" data-aos="fade-up">
+        <h2 class="fw-bold">How it works</h2>
+        <p class="text-muted">Three simple steps from quote to done-and-dusted.</p>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4" data-aos="fade-up">
+          <div class="step h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <span class="badge text-bg-primary rounded-pill">1</span>
+              <h6 class="mb-0">Tell us what you need</h6>
+            </div>
+            <p class="text-muted small mb-0">Pick a service, describe the task, add photos if helpful.</p>
+          </div>
+        </div>
+        <div class="col-md-4" data-aos="fade-up" data-aos-delay="50">
+          <div class="step h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <span class="badge text-bg-primary rounded-pill">2</span>
+              <h6 class="mb-0">Choose time & price</h6>
+            </div>
+            <p class="text-muted small mb-0">See upfront pricing and available slots. Book instantly.</p>
+          </div>
+        </div>
+        <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+          <div class="step h-100">
+            <div class="d-flex align-items-center gap-3 mb-2">
+              <span class="badge text-bg-primary rounded-pill">3</span>
+              <h6 class="mb-0">Relax while we handle it</h6>
+            </div>
+            <p class="text-muted small mb-0">Tracked arrival, friendly pros, and reliable support.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Band -->
+  <section class="section py-5">
+    <div class="container">
+      <div class="cta p-5" data-aos="zoom-in">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-8">
+            <h3 class="mb-1">Ready to book?</h3>
+            <p class="mb-0">Instant quotes, transparent pricing, and pros you can trust.</p>
+          </div>
+          <div class="col-lg-4 text-lg-end">
+            <a href="#contact" class="btn btn-light btn-lg"><i class="bi bi-calendar2-check me-2"></i>Get started</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="section bg-white">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-10">
+          <h2 class="fw-bold text-center mb-4" data-aos="fade-up">Frequently asked questions</h2>
+          <div class="accordion" id="faqAccordion" data-aos="fade-up" data-aos-delay="50">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="q1">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#a1" aria-expanded="true" aria-controls="a1">Are your professionals background-checked?</button>
+              </h2>
+              <div id="a1" class="accordion-collapse collapse show" aria-labelledby="q1" data-bs-parent="#faqAccordion">
+                <div class="accordion-body small text-muted">Yes. Every pro passes ID verification and background screening, plus ongoing quality reviews.</div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="q2">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a2" aria-expanded="false" aria-controls="a2">How is pricing calculated?</button>
+              </h2>
+              <div id="a2" class="accordion-collapse collapse" aria-labelledby="q2" data-bs-parent="#faqAccordion">
+                <div class="accordion-body small text-muted">Pricing is transparent and shown before you book, based on task complexity and time.</div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="q3">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#a3" aria-expanded="false" aria-controls="a3">Can I reschedule?</button>
+              </h2>
+              <div id="a3" class="accordion-collapse collapse" aria-labelledby="q3" data-bs-parent="#faqAccordion">
+                <div class="accordion-body small text-muted">Absolutely. You can reschedule up to 24 hours before the appointment at no cost.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+
+  <footer class="py-5 mt-4">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img src="assets/img/ss_logo.png" alt="Service Sync logo" style="height:28px" />
+            <span class="fw-semibold text-white">Service Sync</span>
+          </div>
+          <p class="small mb-0">Trusted home services with transparent pricing and instant booking.</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <div class="small">© <span id="year"></span> Service Sync. All rights reserved.</div>
+          <div class="small"><a href="#">Terms</a> · <a href="#">Privacy</a></div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({ once: true, duration: 700, offset: 120 });
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en" ng-app="myApp">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Service Sync — Checkout</title>
+
+  <!-- Bootstrap 5 + Icons (load once globally if you already have them) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+
+  <style>
+    :root { --ss-shadow: 0 .5rem 1rem rgba(0,0,0,.08); }
+    body { padding-top: 72px; }
+
+    /* Header */
+    .ss-navbar { background:#ffffff; box-shadow: 0 .25rem .75rem rgba(0,0,0,.05); }
+
+    /* Stepper */
+    .ss-stepper .step { display:flex; align-items:center; gap:.75rem; color:#6c757d; }
+    .ss-stepper .step .dot {
+      width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+      border:2px solid #dee2e6; background:#fff; font-weight:600;
+    }
+    .ss-stepper .step.active { color:#0d6efd; }
+    .ss-stepper .step.active .dot { border-color:#0d6efd; color:#0d6efd; }
+    .ss-stepper .divider { flex:1; height:2px; background:#e9ecef; margin:0 .5rem; }
+
+    /* Small centered image box */
+    .ss-thumb{
+      width: 88px; height: 88px;
+      display:flex; align-items:center; justify-content:center;
+      background:#f8f9fa; border:1px solid #eee; border-radius:999px;
+      margin: 0 auto;
+    }
+    .ss-thumb img{ max-width:70%; max-height:70%; object-fit:contain; display:block; }
+
+    /* Cards */
+    .ss-card { border:0; box-shadow: var(--ss-shadow); }
+    .text-12 { font-size:.75rem; }
+
+    /* Sticky summary */
+    .ss-summary { position: sticky; top: 96px; }
+
+    /* Minor spacing fixes on mobile */
+    @media (max-width: 991.98px) {
+      .ss-summary { position:static; margin-top:1rem; }
+    }
+  </style>
+</head>
+
+<body class="index-page" ng-controller="servicecontroller">
+
+  <!-- Header -->
+  <nav class="navbar navbar-expand-lg ss-navbar fixed-top">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" ng-click="home()" style="cursor:pointer">
+        <img src="assets/img/ss_logo.png" alt="Service Sync" style="height:32px">
+        <span class="fw-semibold">Service Sync</span>
+      </a>
+      <div class="ms-auto d-flex align-items-center gap-2 text-muted">
+        <i class="bi bi-geo-alt"></i>
+        <span class="small">{{ address || 'Erie' }}</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container" ng-show="thankyou==false">
+    <!-- Stepper -->
+    <div class="row pt-3 pb-2">
+      <div class="col-12">
+        <div class="d-flex align-items-center ss-stepper">
+          <div class="step">
+            <div class="dot">1</div><div>Select Service</div>
+          </div>
+          <div class="divider"></div>
+          <div class="step">
+            <div class="dot">2</div><div>Choose Level</div>
+          </div>
+          <div class="divider"></div>
+          <div class="step">
+            <div class="dot">3</div><div>Add-ons</div>
+          </div>
+          <div class="divider"></div>
+          <div class="step active">
+            <div class="dot">4</div><div>Checkout</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hero strip (selected service preview) -->
+    <div class="row g-3 align-items-center mb-3">
+      <div class="col-auto">
+        <div class="ss-thumb" ng-repeat="li in list | filter:{ id: service }" ng-show="$first">
+          <img ng-src="{{li.image}}" alt="{{li.title}}">
+        </div>
+      </div>
+      <div class="col">
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="mb-0" ng-repeat="li in list | filter:{ id: service }" ng-show="$first">{{ li.title }}</h5>
+          <span class="badge bg-secondary" ng-if="level==1">Standard</span>
+          <span class="badge bg-secondary" ng-if="level==2">Deep</span>
+          <span class="badge bg-secondary" ng-if="level==3">Move out</span>
+        </div>
+        <div class="text-muted text-12">Review your details and complete your booking.</div>
+      </div>
+    </div>
+
+    <form novalidate ng-submit="submitpayment()">
+      <div class="row g-4">
+        <!-- Left column -->
+        <div class="col-lg-8">
+          <!-- Order details -->
+          <div class="ss-card card mb-4">
+            <div class="card-header fw-semibold">Order Details</div>
+            <div class="card-body">
+              <!-- Selected items -->
+              <div class="row gy-2 mb-3" ng-if="(selectedservicearr||[]).length">
+                <div class="col-12 d-flex justify-content-between" ng-repeat="arr in selectedservicearr">
+                  <div>
+                    <span class="fw-semibold">{{arr.name}}</span>
+                    <em class="text-muted ms-1">
+                      <span ng-if="level==1">(Standard)</span>
+                      <span ng-if="level==2">(Deep)</span>
+                      <span ng-if="level==3">(Move out)</span>
+                    </em>
+                  </div>
+                  <div class="fw-semibold">{{ (arr.price * level) | currency }}</div>
+                </div>
+              </div>
+
+              <!-- Date/Time -->
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="date" class="form-label">Date</label>
+                  <input type="date" class="form-control" id="date" ng-model="orderDate" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="time" class="form-label">Time</label>
+                  <input type="time" class="form-control" id="time" ng-model="orderTime" required>
+                </div>
+                <div class="col-12">
+                  <label for="notes" class="form-label">Notes</label>
+                  <textarea id="notes" class="form-control" ng-model="orderNotes" placeholder="Any special instructions?"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal details -->
+          <div class="ss-card card mb-4">
+            <div class="card-header fw-semibold">Personal Details</div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label for="name" class="form-label">Name</label>
+                  <input type="text" class="form-control" id="name" ng-model="cust.name" placeholder="Full name" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="email" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="email" ng-model="cust.email" placeholder="name@example.com" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="phone" class="form-label">Phone</label>
+                  <input type="tel" class="form-control" id="phone" ng-model="cust.phone" placeholder="(000) 000-0000" required>
+                </div>
+
+                <div class="col-12">
+                  <label for="street" class="form-label">Street</label>
+                  <input type="text" class="form-control" id="street" ng-model="cust.street" placeholder="123 Main St" required>
+                </div>
+
+                <div class="col-md-3">
+                  <label for="suite" class="form-label">Suite</label>
+                  <input type="text" class="form-control" id="suite" ng-model="cust.suite" placeholder="Apt / Suite">
+                </div>
+                <div class="col-md-3">
+                  <label for="city" class="form-label">City</label>
+                  <input type="text" class="form-control" id="city" ng-model="cust.city" required>
+                </div>
+                <div class="col-md-2">
+                  <label for="state" class="form-label">State</label>
+                  <input type="text" class="form-control" id="state" ng-model="cust.state" maxlength="2" placeholder="PA" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="zip" class="form-label">Zip</label>
+                  <input type="text" class="form-control" id="zip" ng-model="cust.zip" inputmode="numeric" maxlength="10" required>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment (demo only) -->
+          <div class="ss-card card mb-4">
+            <div class="card-header fw-semibold">Payment Details</div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label for="card-number" class="form-label">Card Number</label>
+                  <input type="text" class="form-control" id="card-number" ng-model="pay.card"
+                         inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="name-on-card" class="form-label">Name on Card</label>
+                  <input type="text" class="form-control" id="name-on-card" ng-model="pay.name" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="expiry-date" class="form-label">Expiry</label>
+                  <input type="text" class="form-control" id="expiry-date" ng-model="pay.expiry"
+                         placeholder="MM/YY" maxlength="5" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="cvv" class="form-label">CVV</label>
+                  <input type="password" class="form-control" id="cvv" ng-model="pay.cvv"
+                         inputmode="numeric" maxlength="4" placeholder="***" required>
+                </div>
+              </div>
+              <div class="alert alert-info mt-3 mb-0 text-12">
+                Demo only — do not enter real card data in development environments.
+              </div>
+            </div>
+          </div>
+
+          <div class="text-end mb-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+              Submit Payment
+            </button>
+          </div>
+        </div>
+
+        <!-- Right column: Summary -->
+        <div class="col-lg-4">
+          <div class="ss-card card ss-summary">
+            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+              <span>Order Summary{{selectedservicearr}}</span>
+              <span class="badge text-bg-primary">{{ (selectedservicearr || []).length }}</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="list-group list-group-flush">
+                <div class="list-group-item" ng-repeat="arr in selectedservicearr">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="me-2">
+                      <div class="fw-semibold">{{arr.name}}</div>
+                      <div class="text-muted text-12">
+                        <em>
+                          <span ng-if="level==1">(Standard)</span>
+                          <span ng-if="level==2">(Deep)</span>
+                          <span ng-if="level==3">(Move out)</span>
+                        </em>
+                      </div>
+                    </div>
+                    <div class="text-end">
+                      <div class="fw-semibold">{{ (arr.price * level) | currency }}</div>
+                      <a href="" class="text-danger text-12 d-inline-flex align-items-center gap-1"
+                         ng-click="remove(arr); $event.preventDefault();">
+                        <i class="bi bi-trash"></i> Delete
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div class="list-group-item d-flex justify-content-between fw-semibold">
+                  <span>Total</span>
+                  <span>{{ total | currency }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer bg-transparent">
+              <button class="btn btn-outline-primary w-100" ng-click="showpayment()">
+                View Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      </div> <!-- /row -->
+    </form>
+  </div>
+
+  <!-- Thank you state -->
+  <div class="container mt-5" ng-show="thankyou==true">
+    <div class="row justify-content-center">
+      <div class="col-md-7">
+        <div class="card text-center ss-card">
+          <div class="card-header bg-success text-white">
+            <h2 class="my-2">Payment Successful</h2>
+          </div>
+          <div class="card-body py-4">
+            <p class="card-text">Thank you! Your payment was processed.</p>
+            <p class="card-text text-muted">A confirmation email has been sent to your registered address.</p>
+            <button class="btn btn-primary" ng-click="home()">Go to Home</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS (if not already loaded elsewhere) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

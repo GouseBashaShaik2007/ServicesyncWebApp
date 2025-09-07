@@ -1,0 +1,27 @@
+# .NET build
+bin/
+obj/
+*.user
+*.suo
+*.csproj.user
+
+# DBs
+app.db
+*.sqlite
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Sensitive / misc
+*.ovpn
