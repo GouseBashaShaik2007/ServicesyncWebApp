@@ -103,7 +103,7 @@ $scope.signinUser = function(form){
    if(response.data && response.data.success){
     $scope.status = { ok: true, err: false, msg: 'Login successful ✔' };
     alert($scope.status.msg);
-    $location.path('/');  // Redirect to home page after successful login
+    $location.path('/login');  // Redirect to home page after successful login
    } else {
     $scope.status = { ok: false, err: true, msg: 'Login failed ❌' };
     alert($scope.status.msg);

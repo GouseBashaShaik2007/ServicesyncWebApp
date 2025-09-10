@@ -19,6 +19,13 @@ using ServicesyncWebApp.Models;           // EmailRequest
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(o =>
+    o.AddDefaultPolicy(p => p
+        .WithOrigins("https://servicesyncusa.online")
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+    )
+);
 // --- Services ---
 builder.Services.AddControllers(); // attribute-routed controllers (if any)
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
