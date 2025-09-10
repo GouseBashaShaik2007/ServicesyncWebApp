@@ -20,7 +20,7 @@ app.config(function($routeProvider, $locationProvider) {
     .when('/register',{ templateUrl: 'register.html',controller: "mainController" })
 
     .when("/professional", {
-      templateUrl: "profesional.html", 
+      templateUrl: "profesional.html",
       controller: "mainController"
     })
     .when("/service-detail", {
@@ -44,7 +44,8 @@ app.run(function($rootScope, $timeout){
 app.controller('mainController', function ($scope, $http, $location) {
   $scope.message = false;
   $scope.swapAuth=false;
-  $scope.reg={};
+   $scope.reg = { FullName:'', Email:'', Phone:'', PasswordHash:'', confirm:'' };
+   $scope.signin = { Email:'', PasswordHash:'' };
   $scope.getCategories = function () {
     $http.get("/api/data/categories")
       .then(function (response) {
@@ -63,24 +64,78 @@ app.controller('mainController', function ($scope, $http, $location) {
 
 
 $scope.signup = function(form){
-console.log($scope.reg);
-return false;
   $http({
   method: 'POST',
   url: '/api/data/register',
   data: angular.toJson($scope.reg),
   headers: { 'Content-Type': 'application/json; charset=utf-8' }
 })
-  .then(function () {
+  .then(function (response) {
+   if(response.data && response.data.message){
     $scope.status = { ok: true, err: false, msg: 'Registration successful ✔' };
-    $scope.reg={};
-    form.$setPristine();
-    form.$setUntouched();
-  }, function(err){
-    $scope.status = { ok: false, err: true, msg: err.data || 'Registration failed ❌' };
-  });
-
+    alert($scope.status.msg);
+    $location.path('/login');
+   } else {
+    $scope.status = { ok: false, err: true, msg: 'Registration failed ❌' };
+    alert($scope.status.msg);
+   }
+  }, function (error) {
+    // Handle error responses (like email already exists)
+    if (error.data) {
+      $scope.status = { ok: false, err: true, msg: error.data };
+      alert($scope.status.msg);
+    } else {
+      $scope.status = { ok: false, err: true, msg: 'Registration failed ❌' };
+      alert($scope.status.msg);
+    }
+  })
 }
+
+$scope.signinUser = function(form){
+  console.log($scope.signin);
+  $http({
+  method: 'POST',
+  url: '/api/data/login',
+  data: angular.toJson($scope.signin),
+  headers: { 'Content-Type': 'application/json; charset=utf-8' }
+})
+  .then(function (response) {
+   if(response.data && response.data.success){
+    $scope.status = { ok: true, err: false, msg: 'Login successful ✔' };
+    alert($scope.status.msg);
+    $location.path('/');  // Redirect to home page after successful login
+   } else {
+    $scope.status = { ok: false, err: true, msg: 'Login failed ❌' };
+    alert($scope.status.msg);
+   }
+  }, function (error) {
+    // Handle login errors
+    if (error.data) {
+      $scope.status = { ok: false, err: true, msg: error.data };
+      alert($scope.status.msg);
+    } else {
+      $scope.status = { ok: false, err: true, msg: 'Login failed ❌' };
+      alert($scope.status.msg);
+    }
+  })
+}
+
+$scope.sendotp = function (data) {
+  $http({
+  method: 'POST',
+  url: '/api/email/send',
+  data: angular.toJson({
+    to: 'gbasha951@gmail.com',
+    subject: 'Testing...',
+    html: '<p>Testing for the project otp is 858525</p>'
+  }),
+  headers: { 'Content-Type': 'application/json; charset=utf-8' }
+})
+  .then(function () {
+    $scope.status = { ok: true, err: false, msg: 'Email sent ✔' };
+  })
+};
+
 
 $scope.send = function () {
   $http({
@@ -112,7 +167,7 @@ $scope.swap = function(id,containerSelector, a){
     }
     el.classList.add('active');
   };
-  
+
   // $scope.showregistration  = function(){ $scope.showreg = true;  };
   // $scope.showregistration1 = function(){ $scope.showreg = false; };
 
@@ -146,7 +201,7 @@ app.controller('logincontroller', function ($scope, $location, $http) {
         $scope.categories = [];
       });
   };
-  
+
 
 });
 
@@ -179,9 +234,9 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams) {
 
   // ---- UI FLOW ----
   $scope.selectlist = function () { $scope.step = 2; };
-  $scope.checklevel = function () { 
-    $scope.step = 3; 
-   // $scope.gettotal(); 
+  $scope.checklevel = function () {
+    $scope.step = 3;
+   // $scope.gettotal();
   };
 
   // ---- SELECTION ----

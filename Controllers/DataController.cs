@@ -3,6 +3,8 @@ using System.Data;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ServicesyncWebApp.Controllers
 {
@@ -65,52 +67,128 @@ namespace ServicesyncWebApp.Controllers
             }
         }
 
-        // Example extra endpoints – keep if you use them
-        [HttpGet("users")]
-        public IActionResult GetUsers([FromQuery] bool debug = false)
+        // POST /api/data/register
+        [HttpPost("register")]
+        public IActionResult Register([FromBody] RegisterRequest request)
         {
             try
             {
-                var data = ExecuteQuery("SELECT * FROM dbo.Users");
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                if (debug) return StatusCode(500, ex.ToString());
-                return StatusCode(500, "Failed to load users");
-            }
-        }
-
-        [HttpGet("orders")]
-        public IActionResult GetOrders([FromQuery] bool debug = false)
-        {
-            try
-            {
-                var data = ExecuteQuery("SELECT * FROM dbo.Orders");
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                if (debug) return StatusCode(500, ex.ToString());
-                return StatusCode(500, "Failed to load orders");
-            }
-        }
-
-        private DataTable ExecuteQuery(string query)
-        {
-            var table = new DataTable();
-            using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
-            {
-                con.Open();
-                using (var cmd = new SqlCommand(query, con))
-                using (var reader = cmd.ExecuteReader())
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.FullName) ||
+                    string.IsNullOrWhiteSpace(request.Email) ||
+                    string.IsNullOrWhiteSpace(request.Phone) ||
+                    string.IsNullOrWhiteSpace(request.PasswordHash))
                 {
-                    table.Load(reader);
+                    return BadRequest("All fields are required.");
+                }
+
+                // Hash the password
+                byte[] passwordHash;
+                using (var sha256 = SHA256.Create())
+                {
+                    passwordHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(request.PasswordHash));
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    // Check if email already exists
+                    using (var checkCmd = new SqlCommand("SELECT COUNT(*) FROM dbo.Users WHERE Email = @Email", con))
+                    {
+                        checkCmd.Parameters.AddWithValue("@Email", request.Email);
+                        var existingCount = (int)checkCmd.ExecuteScalar();
+                        if (existingCount > 0)
+                        {
+                            return BadRequest("Email already exists.");
+                        }
+                    }
+
+                    // Insert new user with hashed password
+                    using (var insertCmd = new SqlCommand(
+                        "INSERT INTO dbo.Users (FullName, Email, Phone, PasswordHash, CreatedAt) VALUES (@FullName, @Email, @Phone, @PasswordHash, @CreatedAt)",
+                        con))
+                    {
+                        insertCmd.Parameters.AddWithValue("@FullName", request.FullName);
+                        insertCmd.Parameters.AddWithValue("@Email", request.Email);
+                        insertCmd.Parameters.AddWithValue("@Phone", request.Phone);
+                        insertCmd.Parameters.Add("@PasswordHash", SqlDbType.VarBinary).Value = passwordHash;
+                        insertCmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
+
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
+
+                return Ok(new { message = "Registration successful" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Registration failed: " + ex.Message);
+            }
+        }
+
+        // POST /api/data/login
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginRequest request)
+        {
+            try
+            {
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.Email) ||
+                    string.IsNullOrWhiteSpace(request.PasswordHash))
+                {
+                    return BadRequest("Email and password are required.");
+                }
+
+                // Hash the provided password
+                byte[] providedPasswordHash;
+                using (var sha256 = SHA256.Create())
+                {
+                    providedPasswordHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(request.PasswordHash));
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    // Get user by email and password hash
+                    using (var cmd = new SqlCommand(
+                        "SELECT UserID, FullName, Email, Phone FROM dbo.Users WHERE Email = @Email AND PasswordHash = @PasswordHash",
+                        con))
+                    {
+                        cmd.Parameters.AddWithValue("@Email", request.Email);
+                        cmd.Parameters.Add("@PasswordHash", SqlDbType.VarBinary).Value = providedPasswordHash;
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var user = new
+                                {
+                                    UserID = reader.GetInt32(0),
+                                    FullName = reader.GetString(1),
+                                    Email = reader.GetString(2),
+                                    Phone = reader.GetString(3)
+                                };
+
+                                return Ok(new { success = true, user = user });
+                            }
+                            else
+                            {
+                                return BadRequest("Invalid email or password.");
+                            }
+                        }
+                    }
                 }
             }
-            return table;
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Login failed: " + ex.Message);
+            }
         }
 
         public record CategoryDto(int Id, string Name, string? ImagePath);
+        public record RegisterRequest(string FullName, string Email, string Phone, string PasswordHash, string? Confirm);
+        public record LoginRequest(string Email, string PasswordHash);
     }
 }

@@ -75,16 +75,16 @@
                 <form novalidate>
                   <div class="mb-3">
                     <label class="form-label" for="signinEmail">Email</label>
-                    <input class="form-control" id="signinEmail" type="email" placeholder="you@gmail.com" required />
+                    <input class="form-control" id="signinEmail" type="email" placeholder="you@gmail.com" required ng-model="signin.Email"/>
                     <div class="form-text text-danger d-none" id="signinEmailErr">Please enter a valid email.</div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label" for="signinPass">Password</label>
-                    <input class="form-control" id="signinPass" type="password" minlength="6" placeholder="••••••" required />
+                    <input class="form-control" id="signinPass" type="password" minlength="6" placeholder="••••••" required ng-model="signin.PasswordHash" />
                     <div class="form-text text-danger d-none" id="signinPassErr">Password must be at least 6 characters.</div>
                   </div>
                   <div class="d-flex justify-content-between align-items-center">
-                    <button class="btn btn-primary" type="submit" id="signinBtn">
+                    <button class="btn btn-primary" type="button" id="signinBtn" ng-click="signinUser()">
                       <i class="bi bi-box-arrow-in-right me-1"></i> Sign in
                     </button>
                     <!-- 🔧 helper to switch to signup -->
@@ -123,7 +123,7 @@
                     </div>
                     <div class="col-md-6">
                       <label class="form-label" for="regConfirm">Confirm password</label>
-                      <input class="form-control" id="regConfirm" type="password" minlength="6" required  ng-model="reg.PasswordSalt"/>
+                      <input class="form-control" id="regConfirm" type="password" minlength="6" required  ng-model="reg.confirm"/>
                       <div class="form-text text-danger d-none" id="regConfirmErr">Passwords must match.</div>
                     </div>
                   </div>
