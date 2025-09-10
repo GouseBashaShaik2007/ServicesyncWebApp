@@ -48,7 +48,7 @@ namespace ServicesyncWebApp.Controllers
                         while (rdr.Read())
                         {
                             list.Add(new CategoryDto(
-                                rdr.GetInt32(0),   // Id
+                                (int)rdr.GetInt64(0),   // Id - Fixed: cast from Int64 to Int32
                                 rdr.GetString(1),   // Name
                                 rdr.IsDBNull(2) ? null : rdr.GetString(2)
                             ));

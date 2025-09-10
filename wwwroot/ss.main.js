@@ -63,20 +63,22 @@ app.controller('mainController', function ($scope, $http, $location) {
 
 
 $scope.signup = function(form){
-  console.log($scope.reg)
-    $http({
+console.log($scope.reg);
+return false;
+  $http({
   method: 'POST',
-  url: '/api/email/send',
-  data: angular.toJson({
-    to: 'gbasha951@gmail.com',
-    subject: 'Testing...',
-    html: '<p>Testing for the project otp is 858525</p>'
-  }),
+  url: '/api/data/register',
+  data: angular.toJson($scope.reg),
   headers: { 'Content-Type': 'application/json; charset=utf-8' }
 })
   .then(function () {
-    $scope.status = { ok: true, err: false, msg: 'Email sent ✔' };
-  })
+    $scope.status = { ok: true, err: false, msg: 'Registration successful ✔' };
+    $scope.reg={};
+    form.$setPristine();
+    form.$setUntouched();
+  }, function(err){
+    $scope.status = { ok: false, err: true, msg: err.data || 'Registration failed ❌' };
+  });
 
 }
 
