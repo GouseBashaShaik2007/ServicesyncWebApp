@@ -313,6 +313,55 @@ namespace ServicesyncWebApp.Controllers
         public record ProfessionalDto(int ProfessionalID, string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode);
         public record ServiceDto(int ServiceID, int ProfessionalID, int CategoryID, string ServiceName, string Title, decimal Price, int? EstimatedHours, string Description, bool IsActive);
 
+        // GET /api/data/services?professionalId=1
+        [HttpGet("services")]
+        public IActionResult GetServicesByProfessional([FromQuery] int professionalId)
+        {
+            try
+            {
+                var services = new List<ServiceDto>();
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    var query = @"
+                        SELECT ServiceID, ProfessionalID, CategoryID, ServiceName, Title, Price, EstimatedHours, Description, IsActive
+                        FROM dbo.Services
+                        WHERE ProfessionalID = @ProfessionalID AND IsActive = 1
+                    ";
+
+                    using (var cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@ProfessionalID", professionalId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                services.Add(new ServiceDto(
+                                    reader.GetInt32(0),
+                                    reader.GetInt32(1),
+                                    reader.GetInt32(2),
+                                    reader.GetString(3),
+                                    reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    reader.GetDecimal(5),
+                                    reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                                    reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                    reader.GetBoolean(8)
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                return Ok(services);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load services: " + ex.Message);
+            }
+        }
+
         // POST /api/data/orders
         [HttpPost("orders")]
         public IActionResult CreateOrder([FromBody] CreateOrderRequest request)
