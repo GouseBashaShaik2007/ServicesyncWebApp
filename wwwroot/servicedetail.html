@@ -252,11 +252,19 @@
     // Initialize Square payments
     document.addEventListener('DOMContentLoaded', async function () {
       if (!window.Square) {
-        throw new Error('Square.js failed to load properly');
+        console.error('Square.js failed to load properly');
+        alert('Payment system is not available. Please refresh the page.');
+        return;
       }
 
-      const payments = window.Square.payments('sandbox-sq0idb-_43p4hl5eUv3xkYp6FqLZA', 'sandbox');
-      card = await initializeCard(payments);
+      try {
+        const payments = window.Square.payments('sandbox-sq0idb-_43p4hl5eUv3xkYp6FqLZA');
+        card = await initializeCard(payments);
+        console.log('Square payment card initialized successfully');
+      } catch (error) {
+        console.error('Error initializing Square payments:', error);
+        alert('Failed to initialize payment system: ' + error.message);
+      }
     });
 
     // Function to handle payment and order submission
