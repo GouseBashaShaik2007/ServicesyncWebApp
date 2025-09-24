@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
+using System.Linq;
+using ServicesyncWebApp.Services;
 
 namespace ServicesyncWebApp.Controllers
 {
@@ -13,7 +15,14 @@ namespace ServicesyncWebApp.Controllers
     public class DataController : ControllerBase
     {
         private readonly IConfiguration _config;
+        private static readonly Dictionary<string, PendingRegistration> _pendingRegistrations = new();
         public DataController(IConfiguration config) => _config = config;
+
+        private string GenerateOtp()
+        {
+            var random = new Random();
+            return random.Next(100000, 999999).ToString();
+        }
 
         // Quick sanity check: /api/data/ping and /api/ping -> "ok"
         [HttpGet("ping")]
@@ -69,7 +78,7 @@ namespace ServicesyncWebApp.Controllers
 
         // POST /api/data/register
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request, [FromServices] IEmailSender emailSender)
         {
             try
             {
@@ -80,13 +89,6 @@ namespace ServicesyncWebApp.Controllers
                     string.IsNullOrWhiteSpace(request.PasswordHash))
                 {
                     return BadRequest("All fields are required.");
-                }
-
-                // Hash the password
-                byte[] passwordHash;
-                using (var sha256 = SHA256.Create())
-                {
-                    passwordHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(request.PasswordHash));
                 }
 
                 using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
@@ -103,27 +105,91 @@ namespace ServicesyncWebApp.Controllers
                             return BadRequest("Email already exists.");
                         }
                     }
+                }
 
-                    // Insert new user with hashed password
+                // Hash the password
+                byte[] passwordHash;
+                using (var sha256 = SHA256.Create())
+                {
+                    passwordHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(request.PasswordHash));
+                }
+
+                // Generate OTP
+                var otp = GenerateOtp();
+                var expiry = DateTime.UtcNow.AddMinutes(10); // OTP valid for 10 minutes
+
+                // Store in pending registrations
+                _pendingRegistrations[request.Email] = new PendingRegistration(
+                    request.FullName, request.Email, request.Phone, passwordHash, otp, expiry);
+
+                // Send OTP email
+                var emailBody = $"<p>Your OTP for registration is: <strong>{otp}</strong></p><p>This OTP is valid for 10 minutes.</p>";
+                await emailSender.SendAsync(request.Email, "OTP for Registration", emailBody);
+
+                return Ok(new { message = "OTP sent to your email. Please verify to complete registration." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Registration failed: " + ex.Message);
+            }
+        }
+
+        // POST /api/data/verify-otp
+        [HttpPost("verify-otp")]
+        public IActionResult VerifyOtp([FromBody] VerifyOtpRequest request)
+        {
+            try
+            {
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.Email) ||
+                    string.IsNullOrWhiteSpace(request.Otp))
+                {
+                    return BadRequest("Email and OTP are required.");
+                }
+
+                if (!_pendingRegistrations.TryGetValue(request.Email, out var pending))
+                {
+                    return BadRequest("No pending registration found for this email.");
+                }
+
+                if (DateTime.UtcNow > pending.Expiry)
+                {
+                    _pendingRegistrations.Remove(request.Email);
+                    return BadRequest("OTP has expired. Please register again.");
+                }
+
+                if (pending.Otp != request.Otp)
+                {
+                    return BadRequest("Invalid OTP.");
+                }
+
+                // OTP verified, save user to database
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
                     using (var insertCmd = new SqlCommand(
-                        "INSERT INTO dbo.Users (FullName, Email, Phone, PasswordHash, CreatedAt) VALUES (@FullName, @Email, @Phone, @PasswordHash, @CreatedAt)",
+                        "INSERT INTO dbo.Users (FullName, Email, Phone, PasswordHash, CreatedAt, IsVerified) VALUES (@FullName, @Email, @Phone, @PasswordHash, @CreatedAt, 1)",
                         con))
                     {
-                        insertCmd.Parameters.AddWithValue("@FullName", request.FullName);
-                        insertCmd.Parameters.AddWithValue("@Email", request.Email);
-                        insertCmd.Parameters.AddWithValue("@Phone", request.Phone);
-                        insertCmd.Parameters.Add("@PasswordHash", SqlDbType.VarBinary).Value = passwordHash;
+                        insertCmd.Parameters.AddWithValue("@FullName", pending.FullName);
+                        insertCmd.Parameters.AddWithValue("@Email", pending.Email);
+                        insertCmd.Parameters.AddWithValue("@Phone", pending.Phone);
+                        insertCmd.Parameters.Add("@PasswordHash", SqlDbType.VarBinary).Value = pending.PasswordHash;
                         insertCmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow);
 
                         insertCmd.ExecuteNonQuery();
                     }
                 }
 
+                // Remove from pending
+                _pendingRegistrations.Remove(request.Email);
+
                 return Ok(new { message = "Registration successful" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Registration failed: " + ex.Message);
+                return StatusCode(500, "Verification failed: " + ex.Message);
             }
         }
 
@@ -187,8 +253,126 @@ namespace ServicesyncWebApp.Controllers
             }
         }
 
+        [HttpGet("professionals")]
+        public IActionResult GetProfessionalsByCategory([FromQuery] int categoryId)
+        {
+            try
+            {
+                var professionals = new List<ProfessionalDto>();
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    var query = @"
+                        SELECT DISTINCT p.ProfessionalID, p.CompanyName, p.Email, p.Phone, p.Address1, p.Address2, p.City, p.State, p.PostalCode
+                        FROM dbo.Professionals p
+                        INNER JOIN dbo.ProfessionalServices ps ON p.ProfessionalID = ps.ProfessionalID
+                        WHERE ps.CategoryID = @CategoryID
+                    ";
+
+                    using (var cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@CategoryID", categoryId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                professionals.Add(new ProfessionalDto(
+                                    reader.GetInt32(0),
+                                    reader.GetString(1),
+                                    reader.GetString(2),
+                                    reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                    reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                    reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                    reader.IsDBNull(8) ? "" : reader.GetString(8)
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                return Ok(professionals);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load professionals: " + ex.Message);
+            }
+        }
+
+        
         public record CategoryDto(int Id, string Name, string? ImagePath);
         public record RegisterRequest(string FullName, string Email, string Phone, string PasswordHash, string? Confirm);
         public record LoginRequest(string Email, string PasswordHash);
+        public record PendingRegistration(string FullName, string Email, string Phone, byte[] PasswordHash, string Otp, DateTime Expiry);
+        public record VerifyOtpRequest(string Email, string Otp);
+        public record ProfessionalRegisterRequest(string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode, string PasswordHash);
+        public record ProfessionalLoginRequest(string Email, string PasswordHash);
+        public record ProfessionalDto(int ProfessionalID, string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode);
+        public record ServiceDto(int ServiceID, int ProfessionalID, int CategoryID, string ServiceName, string Title, decimal Price, int? EstimatedHours, string Description, bool IsActive);
+
+        // POST /api/data/orders
+        [HttpPost("orders")]
+        public IActionResult CreateOrder([FromBody] CreateOrderRequest request)
+        {
+            try
+            {
+                if (request == null ||
+                    request.UserID <= 0 ||
+                    request.ProfessionalID <= 0 ||
+                    request.CategoryID <= 0 ||
+                    string.IsNullOrWhiteSpace(request.ServiceAddress1) ||
+                    string.IsNullOrWhiteSpace(request.City) ||
+                    string.IsNullOrWhiteSpace(request.State) ||
+                    string.IsNullOrWhiteSpace(request.PostalCode) ||
+                    request.Subtotal < 0)
+                {
+                    return BadRequest("Invalid order data.");
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    using (var cmd = new SqlCommand(
+                        @"INSERT INTO dbo.Orders 
+                        (UserID, ProfessionalID, CategoryID, ServiceAddress1, ServiceAddress2, City, [State], PostalCode, 
+                         ScheduledStart, ScheduledEnd, Notes, Subtotal, TaxAmount, DiscountAmount, PaymentStatus, OrderStatus, IsActive)
+                        VALUES 
+                        (@UserID, @ProfessionalID, @CategoryID, @ServiceAddress1, @ServiceAddress2, @City, @State, @PostalCode,
+                         @ScheduledStart, @ScheduledEnd, @Notes, @Subtotal, @TaxAmount, @DiscountAmount, @PaymentStatus, @OrderStatus, @IsActive);
+                        SELECT SCOPE_IDENTITY();",
+                        con))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", request.UserID);
+                        cmd.Parameters.AddWithValue("@ProfessionalID", request.ProfessionalID);
+                        cmd.Parameters.AddWithValue("@CategoryID", request.CategoryID);
+                        cmd.Parameters.AddWithValue("@ServiceAddress1", request.ServiceAddress1);
+                        cmd.Parameters.AddWithValue("@ServiceAddress2", string.IsNullOrWhiteSpace(request.ServiceAddress2) ? (object)DBNull.Value : request.ServiceAddress2);
+                        cmd.Parameters.AddWithValue("@City", request.City);
+                        cmd.Parameters.AddWithValue("@State", request.State);
+                        cmd.Parameters.AddWithValue("@PostalCode", request.PostalCode);
+                        cmd.Parameters.AddWithValue("@ScheduledStart", request.ScheduledStart);
+                        cmd.Parameters.AddWithValue("@ScheduledEnd", request.ScheduledEnd ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(request.Notes) ? (object)DBNull.Value : request.Notes);
+                        cmd.Parameters.AddWithValue("@Subtotal", request.Subtotal);
+                        cmd.Parameters.AddWithValue("@TaxAmount", request.TaxAmount);
+                        cmd.Parameters.AddWithValue("@DiscountAmount", request.DiscountAmount);
+                        cmd.Parameters.AddWithValue("@PaymentStatus", request.PaymentStatus);
+                        cmd.Parameters.AddWithValue("@OrderStatus", request.OrderStatus);
+                        cmd.Parameters.AddWithValue("@IsActive", request.IsActive);
+
+                        var orderId = cmd.ExecuteScalar();
+                        return Ok(new { message = "Order created successfully", orderId = orderId });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to create order: " + ex.Message);
+            }
+        }
     }
 }
