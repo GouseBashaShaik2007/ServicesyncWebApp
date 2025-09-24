@@ -98,7 +98,7 @@
               <!-- Sign up -->
               <!-- 🔧 fixed stray tag; added id="signupPane" -->
               <div class="tab-pane" ng-show="swapAuth">
-                <form name="signupForm" ng-submit="signup(signupForm)" novalidate>
+                <form name="signupForm" ng-submit="signup(signupForm)" novalidate ng-show="!otpSent">
                   <div class="mb-3">
                     <label class="form-label" for="regName">Full name</label>
                     <input class="form-control" id="regName" type="text" placeholder="Jane Doe" required ng-model="reg.FullName" />
@@ -137,6 +137,23 @@
                     </button>
                   </div>
                 </form>
+
+                <!-- OTP Verification -->
+                <form name="otpForm" ng-submit="verifyOtp(otpForm)" novalidate ng-show="otpSent">
+                  <div class="mb-3">
+                    <label class="form-label" for="otpCode">Enter OTP</label>
+                    <input class="form-control" id="otpCode" type="text" placeholder="123456" maxlength="6" required ng-model="otp.Code" />
+                    <div class="form-text text-danger d-none" id="otpErr">Please enter the 6-digit OTP.</div>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center mt-3">
+                    <button class="btn btn-success" type="submit">
+                      <i class="bi bi-check-circle me-1"></i> Verify OTP
+                    </button>
+                    <button class="btn btn-link" type="button" ng-click="resendOtp()">
+                      Resend OTP
+                    </button>
+                  </div>
+                </form>
               </div>
             </div><!-- /tab-content -->
 
@@ -165,9 +182,5 @@
     </div>
   </footer>
 
-  <!-- 🔧 BOOTSTRAP JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-  
 </body>
 </html>

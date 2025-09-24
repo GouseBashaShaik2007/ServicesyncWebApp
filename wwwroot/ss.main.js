@@ -307,37 +307,48 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
         $scope.services = [];
       });
   };
-  $scope.submitOrder = function() {
-    if (!$scope.loggedInUser) { alert('Please log in first.'); return; }  
+  $scope.submitOrder = async function() {
+    if (!$scope.loggedInUser) { alert('Please log in first.'); return; }
     if (!$scope.selectedService) { alert('Please select a service.'); return; }
-    if (!$scope.selectedProfessional) { alert('Please select a professional.'); return; }   
+
+    // Set the total for payment
+    window.total = $scope.total;
+
+    // Handle payment first
+    if (typeof handlePaymentAndOrder === 'function') {
+      var paymentSuccess = await handlePaymentAndOrder();
+      if (!paymentSuccess) {
+        return; // Payment failed, do not proceed with order
+      }
+    }
+
     var orderData = {
       UserId: $scope.loggedInUser.UserID,
-      ProfessionalId: $scope.selectedProfessional.ProfessionalID || $scope.selectedProfessional.professionalID, 
-      ServiceId: $scope.selectedService.ServiceID || $scope.selectedService.serviceID,
+    //  ProfessionalId: $scope.selectedProfessional.ProfessionalID || $scope.selectedProfessional.professionalID,
+      //ServiceId: $scope.selectedService.ServiceID || $scope.selectedService.serviceID,
       ScheduledDate: $scope.scheduledDate,
       CustomerName: $scope.cust.name,
-      CustomerEmail: $scope.cust.email, 
+      CustomerEmail: $scope.cust.email,
       CustomerPhone: $scope.cust.phone,
       AddressStreet: $scope.cust.street,
-      AddressSuite: $scope.cust.suite,  
+      AddressSuite: $scope.cust.suite,
       AddressCity: $scope.cust.city,
       AddressState: $scope.cust.state,
       AddressZip: $scope.cust.zip,
       TotalPrice: $scope.total
-    };  
+    };
     $http.post('/api/data/orders', angular.toJson(orderData), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' }
     }).then(function (res) {
-      var ok = res.data && res.data.message;  
+      var ok = res.data && res.data.message;
       $scope.status = { ok: !!ok, err: !ok, msg: ok ? res.data.message : 'Order submission failed ❌' };
-      alert($scope.status.msg);   
+      alert($scope.status.msg);
       if (ok) {
 
         // Clear selection and navigate back to services list
         Selection.clear();
         $location.path('/services/' + ($scope.serviceType || ''));
-      } 
+      }
     }, function (error) {
 
       var msg = (error && error.data) || 'Order submission failed ❌';

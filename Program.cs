@@ -13,10 +13,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using ServicesyncWebApp.Services;         // IEmailSender, SmtpEmailSender
-using ServicesyncWebApp.Options;          // EmailOptions
-using ServicesyncWebApp.Models;           // EmailRequest
-
+using ServicesyncWebApp.Options;
+using ServicesyncWebApp.Services;
+using ServicesyncWebApp.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(o =>
@@ -30,6 +29,7 @@ builder.Services.AddCors(o =>
 builder.Services.AddControllers(); // attribute-routed controllers (if any)
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<SquarePaymentService>();
 
 // CORS (dev): allow cross-origin calls if your front-end runs elsewhere
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
@@ -101,14 +101,16 @@ app.MapGet("/__routes", (IEnumerable<EndpointDataSource> sources) =>
 {
     var lines = new List<string>();
     foreach (var s in sources)
-    foreach (var ep in s.Endpoints)
-    {
-        var route = (ep as RouteEndpoint)?.RoutePattern?.RawText ?? ep.DisplayName ?? "(unknown)";
-        var methods = ep.Metadata.OfType<HttpMethodMetadata>().FirstOrDefault()?.HttpMethods ?? new[] { "ANY" };
-        lines.Add($"{route} [{string.Join(",", methods)}]");
-    }
+        foreach (var ep in s.Endpoints)
+        {
+            var route = (ep as RouteEndpoint)?.RoutePattern?.RawText ?? ep.DisplayName ?? "(unknown)";
+            var methods = ep.Metadata.OfType<HttpMethodMetadata>().FirstOrDefault()?.HttpMethods ?? new[] { "ANY" };
+            lines.Add($"{route} [{string.Join(",", methods)}]");
+        }
     return Results.Text(string.Join("\n", lines));
 });
+
+// -------- SPA FALLBACK --------
 
 // If you have other attribute-routed controllers, keep this:
 app.MapControllers();

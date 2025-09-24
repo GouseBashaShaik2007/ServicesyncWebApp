@@ -8,5 +8,8 @@ namespace ServicesyncWebApp.Models
         public string Phone { get; set; } = "";
         public string PasswordHash { get; set; } = "";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string? OtpCode { get; set; }
+        public DateTime? OtpExpiry { get; set; }
+        public bool IsVerified { get; set; } = false;
     }
 }

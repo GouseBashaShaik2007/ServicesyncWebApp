@@ -26,6 +26,9 @@
 
   <!-- Main CSS File -->
   <link href="assets/css/main.css" rel="stylesheet">
+
+  <!-- Square Web Payments SDK -->
+  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
 </head>
 <body ng-controller="servicecontroller">
   <!-- Nav -->
@@ -131,33 +134,13 @@
           </div>
         </div>
 
-        <!-- Payment (demo only) -->
+        <!-- Payment -->
         <div class="ss-card card mb-4">
           <div class="card-header fw-semibold">Payment Details</div>
           <div class="card-body">
-            <div class="row g-3">
-              <div class="col-12">
-                <label for="card-number" class="form-label">Card Number</label>
-                <input type="text" class="form-control" id="card-number" ng-model="pay.card"
-                       inputmode="numeric" maxlength="19" placeholder="1234 5678 9012 3456" required>
-              </div>
-              <div class="col-md-4">
-                <label for="name-on-card" class="form-label">Name on Card</label>
-                <input type="text" class="form-control" id="name-on-card" ng-model="pay.name" required>
-              </div>
-              <div class="col-md-4">
-                <label for="expiry-date" class="form-label">Expiry</label>
-                <input type="text" class="form-control" id="expiry-date" ng-model="pay.expiry"
-                       placeholder="MM/YY" maxlength="5" required>
-              </div>
-              <div class="col-md-4">
-                <label for="cvv" class="form-label">CVV</label>
-                <input type="password" class="form-control" id="cvv" ng-model="pay.cvv"
-                       inputmode="numeric" maxlength="4" placeholder="***" required>
-              </div>
-            </div>
+            <div id="card-container"></div>
             <div class="alert alert-info mt-3 mb-0 text-12">
-              Demo only — do not enter real card data in development environments.
+              Secure payment powered by Square.
             </div>
           </div>
         </div>
@@ -225,6 +208,77 @@
   <script>
     AOS.init({ once: true, duration: 700, offset: 120 });
     document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+  <!-- Square Payment Initialization -->
+  <script>
+    let card;
+    async function initializeCard(payments) {
+      const card = await payments.card();
+      await card.attach('#card-container');
+      return card;
+    }
+
+    async function createPayment(token) {
+      const body = JSON.stringify({
+        sourceId: token,
+        amount: Math.round(window.total * 100), // Convert to cents
+        currency: 'USD'
+      });
+
+      const paymentResponse = await fetch('/api/payment/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+      });
+      return paymentResponse.json();
+    }
+
+    async function tokenize(paymentMethod) {
+      const tokenResult = await paymentMethod.tokenize();
+      if (tokenResult.status === 'OK') {
+        return tokenResult.token;
+      } else {
+        let errorMessage = `Tokenization failed with status: ${tokenResult.status}`;
+        if (tokenResult.errors) {
+          errorMessage += ` and errors: ${JSON.stringify(tokenResult.errors)}`;
+        }
+        throw new Error(errorMessage);
+      }
+    }
+
+    // Initialize Square payments
+    document.addEventListener('DOMContentLoaded', async function () {
+      if (!window.Square) {
+        throw new Error('Square.js failed to load properly');
+      }
+
+      const payments = window.Square.payments('sandbox-sq0idb-_43p4hl5eUv3xkYp6FqLZA', 'sandbox');
+      card = await initializeCard(payments);
+    });
+
+    // Function to handle payment and order submission
+    async function handlePaymentAndOrder() {
+      if (!card) {
+        alert('Payment method not initialized');
+        return;
+      }
+
+      try {
+        const token = await tokenize(card);
+        const paymentResults = await createPayment(token);
+        alert('Payment successful! Payment ID: ' + paymentResults.paymentId);
+        // Proceed with order submission
+        // This will be called from Angular
+        return true;
+      } catch (e) {
+        console.error(e);
+        alert('Payment failed: ' + e.message);
+        return false;
+      }
+    }
   </script>
 </body>
 </html>

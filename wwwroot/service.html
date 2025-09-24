@@ -3,258 +3,99 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Service Sync — Book a Service</title>
+  <title>Service Sync – Professionals</title>
 
-  <!-- Bootstrap CSS + Icons (make sure these are included once in your layout) -->
+  <!-- Bootstrap CSS + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 
   <style>
-    :root { --ss-shadow: 0 .5rem 1rem rgba(0,0,0,.08); }
-
-    /* Header */
-    .ss-navbar { background: #ffffff; box-shadow: 0 .25rem .75rem rgba(0,0,0,.05); }
     body { padding-top: 72px; }
-
-    /* Stepper */
-    .ss-stepper .step {
-      display:flex; align-items:center; gap:.75rem; color:#6c757d;
-    }
-    .ss-stepper .step .dot {
-      width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center;
-      border:2px solid #dee2e6; background:#fff; font-weight:600;
-    }
-    .ss-stepper .step.active { color:#0d6efd; }
-    .ss-stepper .step.active .dot { border-color:#0d6efd; color:#0d6efd; }
-    .ss-stepper .divider { flex:1; height:2px; background:#e9ecef; margin:0 .5rem; }
-
-    /* Small centered image circle */
-    .ss-thumb {
-      width: 88px; height: 88px; border-radius: 999px;
-      background: #f8f9fa; border: 1px solid #eee;
-      display:flex; align-items:center; justify-content:center;
-      margin: 0 auto;
-    }
-    .ss-thumb img { max-width:70%; max-height:70%; object-fit: contain; display:block; }
-
-    /* Cards / lists */
-    .ss-card { border:0; box-shadow: var(--ss-shadow); }
-    .ss-radio-card { cursor:pointer; }
-    .ss-radio-card input[type="radio"] { display:none; }
-    .ss-radio-card .inner { border:1px solid #e9ecef; border-radius:.75rem; padding:1rem; }
-    .ss-radio-card input:checked + .inner { border-color:#0d6efd; box-shadow:0 0 0 .2rem rgba(13,110,253,.15); }
-
-    /* Stars */
-    .ss-stars i { color:#ffc107; }
-
-    /* Cart */
-    .ss-cart { position: sticky; top: 90px; }
-
-    /* Helpers */
-    .text-12 { font-size: .75rem; }
   </style>
 </head>
 
-<body class="index-page" ng-controller="servicecontroller">
-
-  <!-- Header -->
-  <nav class="navbar navbar-expand-lg ss-navbar fixed-top">
+<body ng-controller="servicecontroller">
+  <!-- Nav -->
+  <nav class="navbar navbar-expand-lg bg-light fixed-top shadow-sm">
     <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2" ng-click="home()" style="cursor:pointer">
-        <img src="assets/img/ss_logo.png" alt="Service Sync" style="height:32px">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+        <img src="assets/img/ss_logo.png" alt="Service Sync logo" style="height:28px"/>
         <span class="fw-semibold">Service Sync</span>
       </a>
-      <div class="ms-auto d-flex align-items-center gap-2 text-muted">
-        <i class="bi bi-geo-alt"></i>
-        <span class="small">{{address || 'Erie'}}</span>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu"
+              aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div id="navMenu" class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+          <li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>
+          <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+        </ul>
       </div>
     </div>
   </nav>
 
-  <div class="container-xxl">
-    <!-- Stepper -->
-    <div class="row pt-3 pb-2">
-      <div class="col-12">
-        <div class="d-flex align-items-center ss-stepper">
-          <div class="step" ng-class="{'active': step===1}">
-            <div class="dot">1</div><div>Select Service</div>
-          </div>
-          <div class="divider"></div>
-          <div class="step" ng-class="{'active': step===2}">
-            <div class="dot">2</div><div>Choose Level</div>
-          </div>
-          <div class="divider"></div>
-          <div class="step" ng-class="{'active': step===3}">
-            <div class="dot">3</div><div>Add-ons & Cart</div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <main class="container py-4">
+    <!-- status -->
+    <div class="alert alert-danger" role="alert" ng-if="error">{{error}}</div>
 
-    <div class="row g-4 py-2">
-      <!-- LEFT: Service image preview -->
-      <div class="col-lg-3 order-lg-1">
-        <div class="ss-card card p-3 text-center">
-          <div class="ss-thumb mb-3" ng-repeat="li in list | filter:{ id: service }" ng-show="$first">
-            <img ng-src="{{li.image}}" alt="{{li.title}}">
+    <!-- Professionals list -->
+    <section ng-show="showProfessionalList">
+      <h3 class="mb-3">Professionals (Category {{categoryId}})</h3>
+
+      <div class="text-muted mb-3" ng-if="loading">Loading…</div>
+      <div class="text-muted mb-3" ng-if="!loading && (!professionals || professionals.length === 0)">No professionals found.</div>
+
+      <ul class="list-group">
+        <li class="list-group-item d-flex justify-content-between align-items-center"
+            ng-repeat="p in professionals">
+          <div>
+            <div class="fw-semibold">{{p.companyName}}</div>
+            <div class="small text-muted">{{p.city}} {{p.state}} · {{p.email}}</div>
           </div>
-          <div class="fw-semibold" ng-repeat="li in list | filter:{ id: service }" ng-show="$first">{{ li.title }}</div>
-        </div>
-      </div>
+          <button class="btn btn-primary btn-sm" ng-click="loadServices(p.professionalID)">
+            View services
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <!-- MIDDLE: Steps content -->
-      <div class="col-lg-6 order-lg-2">
-        <!-- STEP 1: pick a service -->
-        <div ng-show="step==1" class="ss-card card p-3">
-          <h5 class="mb-3">Select a Service</h5>
-          <div class="d-grid gap-2">
-            <label class="ss-radio-card">
-              <div ng-repeat="li in list | filter:{ id: service }" class="mb-2">
-                <input type="radio" name="service_option" id="opt_{{li.index}}" ng-click="selectlist(li)">
-                <div class="inner d-flex align-items-center gap-3">
-                  <div class="ss-thumb"><img ng-src="{{li.image}}" alt="{{li.title}}"></div>
-                  <div class="flex-grow-1">
-                    <div class="d-flex justify-content-between">
-                      <h6 class="mb-1">{{li.title}}</h6>
-                      <div class="ss-stars text-end">
-                        <span class="text-12 me-1">({{li.star}})</span>
-                        <span ng-repeat="n in [1,2,3,4,5]">
-                          <i class="bi" ng-class="{'bi-star-fill': li.star >= n, 'bi-star': li.star < n}"></i>
-                        </span>
-                      </div>
-                    </div>
-                    <div class="text-muted text-12">Tap to choose</div>
-                  </div>
-                </div>
-              </div>
-            </label>
-
-            <div class="text-end">
-              <button class="btn btn-primary" ng-click="step=2">Continue</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 2: pick cleaning level -->
-        <div ng-show="step==2" class="ss-card card p-3">
-          <h5 class="mb-3">Choose Level</h5>
-          <div class="row g-2">
-            <div class="col-12">
-              <label class="ss-radio-card w-100">
-                <input type="radio" name="level" ng-model="level" ng-value="1" ng-click="checklevel(level)" checked>
-                <div class="inner">
-                  <b>Standard</b>
-                  <div class="text-muted text-12 mt-1">Maintains your {{service}} with routine cleaning.</div>
-                </div>
-              </label>
-            </div>
-            <div class="col-12">
-              <label class="ss-radio-card w-100">
-                <input type="radio" name="level" ng-model="level" ng-value="2" ng-click="checklevel(level)">
-                <div class="inner">
-                  <b>Deep</b>
-                  <div class="text-muted text-12 mt-1">Thorough, more rigorous cleaning a few times a year.</div>
-                </div>
-              </label>
-            </div>
-            <div class="col-12">
-              <label class="ss-radio-card w-100">
-                <input type="radio" name="level" ng-model="level" ng-value="3" ng-click="checklevel(level)">
-                <div class="inner">
-                  <b>Move out</b>
-                  <div class="text-muted text-12 mt-1">Deep clean of the entire surfaces.</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-between mt-3">
-            <button class="btn btn-light" ng-click="step=1">Back</button>
-            <button class="btn btn-primary" ng-click="step=3">Continue</button>
-          </div>
-        </div>
-
-        <!-- STEP 3: add-ons / services list -->
-        <div ng-show="step==3" class="ss-card card p-3">
-          <h5 class="mb-3">Add-ons</h5>
-
-          <div class="list-group list-group-flush">
-            <div class="list-group-item px-0" ng-repeat="ser in Services | filter:{ id: service }">
-              <div class="row align-items-center">
-                <div class="col">
-                  <div class="fw-semibold">{{ser.name}}</div>
-                  <div class="text-muted text-12">
-                    {{ (ser.time * level / 4) | number:1 }} hrs
-                    <span ng-if="ser.hide=='1'" class="ms-1 text-success">
-                      <i class="bi bi-bookmark-check-fill"></i>
-                    </span>
-                  </div>
-                </div>
-                <div class="col-auto fw-semibold me-2">
-                  {{ (ser.price * level) | currency }}
-                </div>
-                <div class="col-auto">
-                  <!-- <button class="btn btn-sm btn-outline-secondary"
-                          ng-click="addservice(ser)" ng-hide="ser.hide=='1'">+ Add</button> -->
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-between mt-3">
-            <button class="btn btn-light" ng-click="step=2">Back</button>
-            <button class="btn btn-primary" ng-click="showpayment(Services | filter:{ id: service })">View Cart</button>
-          </div>
-        </div>
+    <!-- Services for selected professional -->
+    <section ng-show="!showProfessionalList">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h3 class="mb-0">Services</h3>
+        <button class="btn btn-link" ng-click="back()">← Back to professionals</button>
       </div>
 
-      <!-- RIGHT: Cart -->
-      <div class="col-lg-3 order-lg-3">
-        <div class="ss-card card ss-cart" ng-show="show==true">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Cart</h6>
-            <span class="badge text-bg-primary">{{(selectedservicearr || []).length}}</span>
-          </div>
-          <div class="card-body p-0">
-            <div class="list-group list-group-flush">
-              <div class="list-group-item" ng-repeat="arr in selectedservicearr">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div class="me-2">
-                    <div class="fw-semibold">{{arr.name}}</div>
-                    <div class="text-muted text-12">
-                      <em>
-                        <span ng-if="level==1">(Standard)</span>
-                        <span ng-if="level==2">(Deep)</span>
-                        <span ng-if="level==3">(Move out)</span>
-                      </em>
-                    </div>
-                  </div>
-                  <div class="text-end">
-                    <div class="fw-semibold">{{ (arr.price * level) | currency }}</div>
-                    <a href="" class="text-danger text-12 d-inline-flex align-items-center gap-1"
-                       ng-click="remove(arr); $event.preventDefault();">
-                      <i class="bi bi-trash"></i> Delete
-                    </a>
-                  </div>
-                </div>
-              </div>
-              <div class="list-group-item d-flex justify-content-between fw-semibold">
-                <span>Total</span>
-                <span>{{ total | currency }}</span>
-              </div>
+      <div class="text-muted mb-3" ng-if="loading">Loading…</div>
+      <div class="text-muted mb-3" ng-if="!loading && (!services || services.length === 0)">No services found.</div>
+
+      <ul class="list-group">
+        <li class="list-group-item" ng-repeat="s in services">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold">{{s.serviceName}}</div>
+              <div class="small text-muted" ng-if="s.description">{{s.description}}</div>
+              <div class="small text-muted" ng-if="s.estimatedHours">~ {{s.estimatedHours}} hrs</div>
+            </div>
+            <div class="text-nowrap">
+              <span class="fw-semibold me-3">{{s.price | currency}}</span>
+              <button class="btn btn-outline-primary btn-sm" ng-click="selectedservice(s)">Select</button>
             </div>
           </div>
-          <div class="card-footer bg-transparent">
-            <button class="btn btn-primary w-100" ng-click="showpayment(Services | filter:{ id: service })">
-              Checkout
-            </button>
-          </div>
-        </div>
-      </div>
-    </div><!-- /row -->
-  </div><!-- /container -->
+        </li>
+      </ul>
+    </section>
+  </main>
 
-  <!-- Bootstrap JS (if not already loaded elsewhere) -->
+  <!-- AngularJS (load BEFORE your app file) -->
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+
+  <!-- Your page logic -->
+  <!-- Bootstrap JS (after content) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
