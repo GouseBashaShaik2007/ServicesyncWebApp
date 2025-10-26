@@ -17,13 +17,27 @@ app.config(function($routeProvider, $locationProvider) {
     .when("/",            { templateUrl: "home.html",        controller: "mainController" })
     .when("/login",       { templateUrl: "login.html",       controller: "logincontroller" })
     .when("/services/:serviceType", { templateUrl: "service.html", controller: "servicecontroller" })
+    .when("/orders", { templateUrl: "orders.html", controller: "logincontroller" })
+    .when("/viewprofile", { templateUrl: "viewprofile.html", controller: "logincontroller" })
     .when("/register",    { templateUrl: "register.html",    controller: "mainController" })
     .when("/professional",{ templateUrl: "profesional.html", controller: "mainController" })
+    .when("/professional/:ProID",{ templateUrl: "profesional.html", controller: "mainController" })
     .when("/service-detail",{ templateUrl: "servicedetail.html", controller: "servicecontroller" })
     .otherwise({ redirectTo: "/" });
 });
 
 app.run(function($rootScope, $timeout){
+  // Load loggedInUser from localStorage on app start
+  var storedUser = localStorage.getItem('loggedInUser');
+  if (storedUser) {
+    try {
+      $rootScope.loggedInUser = JSON.parse(storedUser);
+    } catch(e) {
+      console.error('Failed to parse loggedInUser from localStorage', e);
+      localStorage.removeItem('loggedInUser');
+    }
+  }
+
   $rootScope.$on('$routeChangeSuccess', function(){
     if (window.AOS) {
       try { AOS.refreshHard(); } catch(e) {}
@@ -36,17 +50,19 @@ app.run(function($rootScope, $timeout){
   });
 });
 
-app.controller('mainController', function ($scope, $http, $location, $rootScope) {
+app.controller('mainController', function ($scope, $location, $routeParams, $http, Selection, $rootScope, $timeout) {
   $scope.message = false;
   $scope.swapAuth = false;
   $scope.reg   = { FullName:'', Email:'', Phone:'', PasswordHash:'', confirm:'' };
   $scope.signin= { Email:'', PasswordHash:'' };
   $scope.otp   = { Code:'' };
   $scope.otpSent = false;
+  $scope.ProID = $routeParams.ProID;
 
   $scope.professional = { CompanyName:'', Address:'', CategoryIds:[] };
   $scope.loggedInUser = null;
 
+  
   $scope.getCategories = function () {
     $http.get("/api/data/categories")
       .then(function (res) {
@@ -118,6 +134,8 @@ app.controller('mainController', function ($scope, $http, $location, $rootScope)
     }).then(function (res) {
       if(res.data && res.data.success){
         $rootScope.loggedInUser = res.data.user;
+        // Save loggedInUser to localStorage for persistent login
+        localStorage.setItem('loggedInUser', JSON.stringify(res.data.user));
         $scope.status = { ok: true, err: false, msg: 'Login successful ✔' };
         alert($scope.status.msg);
         $location.path('/login');
@@ -167,7 +185,11 @@ app.controller('mainController', function ($scope, $http, $location, $rootScope)
   };
 });
 
-app.controller('logincontroller', function ($scope, $location, $http) {
+app.controller('logincontroller', function ($scope, $location, $routeParams, $http, Selection, $rootScope, $timeout) {
+  $scope.user = null;
+  $scope.user = $rootScope.loggedInUser;
+
+
   $scope.goToCategory = function (category) {
     $location.path('/services/' + category);
   };
@@ -185,10 +207,51 @@ app.controller('logincontroller', function ($scope, $location, $http) {
         $scope.categories = [];
       });
   };
-  $scope.getCategories();
+ // $scope.getCategories();
 
-  $scope.viewProfile = function() { alert("View Profile clicked - feature to be implemented."); };
-  $scope.signOut    = function() { $location.path('/'); };
+  $scope.getorders = function (user) {
+    $scope.id=user
+    console.log($scope.id.userID)
+    $http.get('/api/data/getorders?userId=' + $scope.id.userID)
+      .then(function (res) {
+        $scope.orders = res.data;
+        if (typeof res.data === "string" && res.data.indexOf("<!DOCTYPE html>") === 0) {
+          console.error("API returned HTML (SPA fallback). Check /api/* routing.");
+          $scope.orders = [];
+        }
+      }, function (err) {
+        console.error("Error loading orders:", err);
+        $scope.orders = [];
+      });
+  }
+
+  $scope.viewprofile = function(user) {
+     $scope.id=user
+    console.log($scope.id.userID)
+    $http.get('/api/data/getuserprofile?userId=' + $scope.id.userID)
+      .then(function (res) {
+        $scope.userprofile = res.data;
+        if (typeof res.data === "string" && res.data.indexOf("<!DOCTYPE html>") === 0) {
+          console.error("API returned HTML (SPA fallback). Check /api/* routing.");
+          $scope.userprofile = [];
+        }
+      }, function (err) {
+        console.error("Error loading user profile:", err);
+        $scope.userprofile = [];
+      });
+   };
+
+  $scope.signOut    = function() {
+    // Clear loggedInUser from localStorage and $rootScope on logout
+    localStorage.removeItem('loggedInUser');
+    if (window.angular) {
+      var $rootScope = angular.element(document.body).injector().get('$rootScope');
+      $rootScope.$apply(function() {
+        $rootScope.loggedInUser = null;
+      });
+    }
+    $location.path('/');
+  };
 });
 
 /* -------------------- service list + detail -------------------- */
@@ -197,18 +260,20 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
   $scope.showProfessionalList = true;
   $scope.selectedService = null;
   $scope.total = 0;
-  console.log($rootScope.loggedInUser);
-  $scope.loggedInUser = $rootScope.loggedInUser;
-  console.log($scope.loggedInUser);
+  $scope.user = null;
+  $scope.user = $rootScope.loggedInUser;
+  console.log($scope.user);
+   $scope.cust = {};
   $scope.cust = {
-        name: $scope.loggedInUser.FullName,
-        email: $scope.loggedInUser.Email,
-        phone: $scope.loggedInUser.Phone,
+        name: $scope.user.fullName,
+        email: $scope.user.email,
+        phone: $scope.user.phone,
         street: '',
         suite: '',
         city: '',
         state: '',
-        zip: ''
+        zip: '',
+        Userid: $scope.user.userID
       };
   console.log($scope.cust);
 
@@ -241,12 +306,29 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
     $scope.services = [];
   };
 
+  function normalizeProfessional(p) {
+    // handle PascalCase or camelCase from API
+    return {
+      professionalID: p.professionalID || p.ProfessionalID,
+      companyName: p.companyName || p.CompanyName,
+      email: p.email || p.Email,
+      phone: p.phone || p.Phone,
+      address1: p.address1 || p.Address1,
+      address2: p.address2 || p.Address2,
+      city: p.city || p.City,
+      state: p.state || p.State,
+      postalCode: p.postalCode || p.PostalCode,
+      ratings: p.ratings || p.Ratings
+    };
+  }
+
   $scope.loadProfessionals = function() {
     var categoryId = $scope.serviceType;
     if (categoryId) {
       $http.get('/api/data/professionals?categoryId=' + categoryId)
         .then(function(res) {
-          $scope.professionals = res.data;
+          $scope.professionals = res.data.map(normalizeProfessional);
+          console.log($scope.professionals);
         }, function(err) {
           console.error('Error loading professionals:', err);
           $scope.professionals = [];
@@ -307,35 +389,62 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
         $scope.services = [];
       });
   };
-  $scope.submitOrder = async function() {
-    if (!$scope.loggedInUser) { alert('Please log in first.'); return; }
-    if (!$scope.selectedService) { alert('Please select a service.'); return; }
 
-    // Set the total for payment
-    window.total = $scope.total;
+  $scope.getreviews = function(professionalId) {
+    $http.get('/api/data/reviews?professionalId=' + professionalId)
+      .then(function(res) {
+        $scope.reviews = res.data;
+        $('#reviewsModal').modal('show');
+      }, function(err) {
+        console.error('Error loading reviews:', err);
+        $scope.reviews = [];
+      });
+  };
+
+  $scope.toggleService = function(s) {
+    s.selected = !s.selected;
+    var total = 0;
+    ($scope.services || []).forEach(function(svc) {
+      if (svc.selected) {
+        total += svc.price || 0;
+      }
+    });
+    $scope.total = total;
+  };
+
+  $scope.submitOrder = async function() {
+    const datePart = new Date($scope.orderDate); // e.g. 2025-10-08
+    const timePart = new Date($scope.orderTime); // e.g. 1970-01-01T05:48:00Z
+    datePart.setHours(timePart.getHours(), timePart.getMinutes(), 0, 0);
+    const scheduledStart = datePart.toISOString(); // "2025-10-08T05:48:00.000Z"
 
     // Handle payment first
-    if (typeof handlePaymentAndOrder === 'function') {
-      var paymentSuccess = await handlePaymentAndOrder();
-      if (!paymentSuccess) {
-        return; // Payment failed, do not proceed with order
-      }
-    }
-
+    // if (typeof handlePaymentAndOrder === 'function') {
+    //   var paymentSuccess = await handlePaymentAndOrder();
+    //   if (!paymentSuccess) {
+    //     return; // Payment failed, do not proceed with order
+    //   }
+    // }
+    alert($scope.user.UserID)
+return false;
     var orderData = {
-      UserId: $scope.loggedInUser.UserID,
-    //  ProfessionalId: $scope.selectedProfessional.ProfessionalID || $scope.selectedProfessional.professionalID,
-      //ServiceId: $scope.selectedService.ServiceID || $scope.selectedService.serviceID,
-      ScheduledDate: $scope.scheduledDate,
-      CustomerName: $scope.cust.name,
-      CustomerEmail: $scope.cust.email,
-      CustomerPhone: $scope.cust.phone,
-      AddressStreet: $scope.cust.street,
-      AddressSuite: $scope.cust.suite,
-      AddressCity: $scope.cust.city,
-      AddressState: $scope.cust.state,
-      AddressZip: $scope.cust.zip,
-      TotalPrice: $scope.total
+      UserID: $scope.user.UserID || 16,
+      ProfessionalID: 1,//$scope.selectedProfessional.professionalID || $scope.selectedProfessional.ProfessionalID,
+      CategoryID: 1,//$scope.selectedService.categoryID || $scope.selectedService.CategoryID,
+      ServiceAddress1: $scope.cust.street,
+      ServiceAddress2: $scope.cust.suite ? $scope.cust.suite : null,
+      City: $scope.cust.city,
+      State: $scope.cust.state,
+      PostalCode: $scope.cust.zip,
+      ScheduledStart: scheduledStart,
+      ScheduledEnd: null,
+      Notes: $scope.orderNotes ? $scope.orderNotes : null,
+      Subtotal: $scope.total,
+      TaxAmount: 0,
+      DiscountAmount: 0,
+      PaymentStatus: 0, // Assuming 0 = pending
+      OrderStatus: 0,   // Assuming 0 = new
+      IsActive: true
     };
     $http.post('/api/data/orders', angular.toJson(orderData), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' }
@@ -347,7 +456,7 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
 
         // Clear selection and navigate back to services list
         Selection.clear();
-        $location.path('/services/' + ($scope.serviceType || ''));
+        $location.path('/orders');
       }
     }, function (error) {
 
@@ -358,4 +467,3 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
 
   };
 });
-

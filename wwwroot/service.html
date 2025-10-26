@@ -16,23 +16,35 @@
 
 <body ng-controller="servicecontroller">
   <!-- Nav -->
-  <nav class="navbar navbar-expand-lg bg-light fixed-top shadow-sm">
-    <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="#">
-        <img src="assets/img/ss_logo.png" alt="Service Sync logo" style="height:28px"/>
+  <nav class="navbar navbar-expand-lg fixed-top shadow-sm" style="z-index: 1050;">
+    <div class="container" >
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#!/login">
+        <img src="assets/img/ss_logo.png" alt="Service Sync logo" />
         <span class="fw-semibold">Service Sync</span>
       </a>
-
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu"
-              aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-
-      <div id="navMenu" class="collapse navbar-collapse">
-        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
-          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
-          <li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>
-          <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 d-flex align-items-center gap-3">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="javascript:void(0)" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle fs-4"></i>
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="#!/viewprofile" >View Profile</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#!/orders" >Orders</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" ng-click="signOut()">Sign Out</a></li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="#/cart">
+              <i class="bi bi-cart fs-4"></i>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" ng-if="cartItemCount > 0">{{cartItemCount}}</span>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
@@ -44,7 +56,7 @@
 
     <!-- Professionals list -->
     <section ng-show="showProfessionalList">
-      <h3 class="mb-3">Professionals (Category {{categoryId}})</h3>
+      <h4 class="mb-3">Professionals </h4><!--(Category {{categoryId}})-->
 
       <div class="text-muted mb-3" ng-if="loading">Loading…</div>
       <div class="text-muted mb-3" ng-if="!loading && (!professionals || professionals.length === 0)">No professionals found.</div>
@@ -53,8 +65,16 @@
         <li class="list-group-item d-flex justify-content-between align-items-center"
             ng-repeat="p in professionals">
           <div>
-            <div class="fw-semibold">{{p.companyName}}</div>
-            <div class="small text-muted">{{p.city}} {{p.state}} · {{p.email}}</div>
+            <div class="fw-semibold">{{p.companyName}}
+              <span class="badge bg-info text-dark" ng-if="p.ratings && p.ratings > 0">
+                 {{p.ratings}}<i class="bi bi-star-fill"></i>
+              </span> 
+              <span class=" text-muted fw-lighter fs-6" ng-if="p.ratings==0 || !p.ratings" style="font-style: italic;    font-size: 0.75rem !important;">
+                  (No ratings yet)
+              </span>       
+            </div>
+            <div class="small text-muted"><i class="bi bi-geo-alt" ng-if="p.city"></i> {{p.city}} {{p.state}} <u class="ps-3" ng-if="p.ratings && p.ratings > 0" style="font-style: italic;    font-size: 0.75rem !important;" ng-click="getreviews(p.professionalID)">See Reviews</u></div>
+            
           </div>
           <button class="btn btn-primary btn-sm" ng-click="loadServices(p.professionalID)">
             View services
@@ -90,6 +110,41 @@
       </ul>
     </section>
   </main>
+
+  <!-- Reviews Modal -->
+  <div class="modal fade" id="reviewsModal" tabindex="-1" aria-labelledby="reviewsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reviewsModalLabel">Customer Reviews</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div ng-if="!reviews || reviews.length === 0" class="text-muted">No reviews available.</div>
+          <div ng-repeat="review in reviews" class="mb-3 p-3 border rounded">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>{{review.fullName}}</strong>
+                <span class="badge bg-success ms-2" ng-if="review.isVerified">Verified</span>
+              </div>
+              <small class="text-muted">{{review.reviewDate}}</small>
+            </div>
+            <div class="mt-2">
+              <div class="mb-1">
+                <span ng-repeat="star in [].constructor(review.rating) track by $index" class="text-warning">★</span>
+                <span ng-repeat="empty in [].constructor(5 - review.rating) track by $index" class="text-muted">☆</span>
+                <small class="text-muted ms-2">({{review.rating}}/5)</small>
+              </div>
+              <p class="mb-0">{{review.reviewText}}</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- AngularJS (load BEFORE your app file) -->
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>

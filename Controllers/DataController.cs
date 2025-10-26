@@ -76,6 +76,46 @@ namespace ServicesyncWebApp.Controllers
             }
         }
 
+        [HttpGet("getuserprofile")]
+        public IActionResult getuserprofile([FromQuery] int userId)
+        {
+            try
+            {
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    using (var cmd = new SqlCommand("SELECT UserID, FullName, Email, Phone FROM dbo.Users WHERE UserID = @UserID", con))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", userId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var userProfile = new UserProfileDto(
+                                    reader.GetInt32(0),
+                                    reader.GetString(1),
+                                    reader.GetString(2),
+                                    reader.GetString(3)
+                                );
+
+                                return Ok(userProfile);
+                            }
+                            else
+                            {
+                                return NotFound("User not found.");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load user profile: " + ex.Message);
+            }
+        }
+
         // POST /api/data/register
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, [FromServices] IEmailSender emailSender)
@@ -88,7 +128,7 @@ namespace ServicesyncWebApp.Controllers
                     string.IsNullOrWhiteSpace(request.Phone) ||
                     string.IsNullOrWhiteSpace(request.PasswordHash))
                 {
-                    return BadRequest("All fields are required.");
+                    return BadRequest(new { error = "All fields are required." });
                 }
 
                 using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
@@ -206,6 +246,8 @@ namespace ServicesyncWebApp.Controllers
                     return BadRequest("Email and password are required.");
                 }
 
+                Console.WriteLine("Login attempt for email: " + request.Email);
+
                 // Hash the provided password
                 byte[] providedPasswordHash;
                 using (var sha256 = SHA256.Create())
@@ -237,10 +279,12 @@ namespace ServicesyncWebApp.Controllers
                                     Phone = reader.GetString(3)
                                 };
 
+                                Console.WriteLine("User found: " + user.UserID + ", " + user.FullName);
                                 return Ok(new { success = true, user = user });
                             }
                             else
                             {
+                                Console.WriteLine("No user found for email: " + request.Email);
                                 return BadRequest("Invalid email or password.");
                             }
                         }
@@ -249,6 +293,7 @@ namespace ServicesyncWebApp.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine("Login error: " + ex.Message);
                 return StatusCode(500, "Login failed: " + ex.Message);
             }
         }
@@ -264,11 +309,12 @@ namespace ServicesyncWebApp.Controllers
                     con.Open();
 
                     var query = @"
-                        SELECT DISTINCT p.ProfessionalID, p.CompanyName, p.Email, p.Phone, p.Address1, p.Address2, p.City, p.State, p.PostalCode
+                        SELECT DISTINCT p.ProfessionalID, p.CompanyName, p.Email, p.Phone, p.Address1, p.Address2, p.City, p.State, p.PostalCode,ISNULL(CAST(Avg(r.Rating) AS DECIMAL(10,2)),0) AS Ratings
                         FROM dbo.Professionals p
                         INNER JOIN dbo.ProfessionalServices ps ON p.ProfessionalID = ps.ProfessionalID
-                        WHERE ps.CategoryID = @CategoryID
-                    ";
+                        LEFT outer JOIN dbo.Reviews r ON r.ProfessionalID = p.ProfessionalID
+                        WHERE ps.CategoryID = @CategoryID GROUP BY p.ProfessionalID, p.CompanyName, p.Email, p.Phone, p.Address1, p.Address2, p.City, p.State, p.PostalCode
+";
 
                     using (var cmd = new SqlCommand(query, con))
                     {
@@ -287,7 +333,10 @@ namespace ServicesyncWebApp.Controllers
                                     reader.IsDBNull(5) ? "" : reader.GetString(5),
                                     reader.IsDBNull(6) ? "" : reader.GetString(6),
                                     reader.IsDBNull(7) ? "" : reader.GetString(7),
-                                    reader.IsDBNull(8) ? "" : reader.GetString(8)
+                                    reader.IsDBNull(8) ? "" : reader.GetString(8),
+                                    reader.IsDBNull(9) ? 0 : reader.GetDecimal(9)
+
+
                                 ));
                             }
                         }
@@ -302,16 +351,7 @@ namespace ServicesyncWebApp.Controllers
             }
         }
 
-        
-        public record CategoryDto(int Id, string Name, string? ImagePath);
-        public record RegisterRequest(string FullName, string Email, string Phone, string PasswordHash, string? Confirm);
-        public record LoginRequest(string Email, string PasswordHash);
-        public record PendingRegistration(string FullName, string Email, string Phone, byte[] PasswordHash, string Otp, DateTime Expiry);
-        public record VerifyOtpRequest(string Email, string Otp);
-        public record ProfessionalRegisterRequest(string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode, string PasswordHash);
-        public record ProfessionalLoginRequest(string Email, string PasswordHash);
-        public record ProfessionalDto(int ProfessionalID, string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode);
-        public record ServiceDto(int ServiceID, int ProfessionalID, int CategoryID, string ServiceName, string Title, decimal Price, int? EstimatedHours, string Description, bool IsActive);
+
 
         // GET /api/data/services?professionalId=1
         [HttpGet("services")]
@@ -369,16 +409,32 @@ namespace ServicesyncWebApp.Controllers
             try
             {
                 if (request == null ||
-                    request.UserID <= 0 ||
                     request.ProfessionalID <= 0 ||
                     request.CategoryID <= 0 ||
                     string.IsNullOrWhiteSpace(request.ServiceAddress1) ||
                     string.IsNullOrWhiteSpace(request.City) ||
                     string.IsNullOrWhiteSpace(request.State) ||
                     string.IsNullOrWhiteSpace(request.PostalCode) ||
-                    request.Subtotal < 0)
+                    request.Subtotal < 0 ||
+                    string.IsNullOrWhiteSpace(request.ScheduledStart))
                 {
-                    return BadRequest("Invalid order data.");
+                    return BadRequest(new { error = "Invalid order data." });
+                }
+
+                // Parse ScheduledStart
+                if (!DateTime.TryParse(request.ScheduledStart, out var scheduledStart))
+                {
+                    return BadRequest(new { error = "Invalid ScheduledStart format." });
+                }
+
+                DateTime? scheduledEnd = null;
+                if (!string.IsNullOrWhiteSpace(request.ScheduledEnd))
+                {
+                    if (!DateTime.TryParse(request.ScheduledEnd, out var end))
+                    {
+                        return BadRequest(new { error = "Invalid ScheduledEnd format." });
+                    }
+                    scheduledEnd = end;
                 }
 
                 using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
@@ -403,8 +459,8 @@ namespace ServicesyncWebApp.Controllers
                         cmd.Parameters.AddWithValue("@City", request.City);
                         cmd.Parameters.AddWithValue("@State", request.State);
                         cmd.Parameters.AddWithValue("@PostalCode", request.PostalCode);
-                        cmd.Parameters.AddWithValue("@ScheduledStart", request.ScheduledStart);
-                        cmd.Parameters.AddWithValue("@ScheduledEnd", request.ScheduledEnd ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ScheduledStart", scheduledStart);
+                        cmd.Parameters.AddWithValue("@ScheduledEnd", scheduledEnd ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(request.Notes) ? (object)DBNull.Value : request.Notes);
                         cmd.Parameters.AddWithValue("@Subtotal", request.Subtotal);
                         cmd.Parameters.AddWithValue("@TaxAmount", request.TaxAmount);
@@ -423,5 +479,164 @@ namespace ServicesyncWebApp.Controllers
                 return StatusCode(500, "Failed to create order: " + ex.Message);
             }
         }
+
+        
+
+        // GET /api/data/orders?userId=16
+        [HttpGet("getorders")]
+        public IActionResult GetOrders([FromQuery] int userId)
+        {
+            try
+            {
+                var orders = new List<OrderDto>();
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    var query = @"
+                        SELECT
+                          o.OrderID,
+                          o.UserID,
+                          u.FullName AS CustomerName,
+                          p.CompanyName,
+                          c.CategoryName,
+                          o.ScheduledStart,
+                          o.Subtotal,
+                          o.TaxAmount,
+                          o.DiscountAmount,
+                          o.PaymentStatus,
+                          o.OrderStatus,
+                          o.Created_At,
+                          CONCAT_WS(', ',
+                            NULLIF(LTRIM(RTRIM(
+                              o.ServiceAddress1 + CASE WHEN NULLIF(o.ServiceAddress2,'') IS NOT NULL THEN ' ' + o.ServiceAddress2 ELSE '' END
+                            )), ''),
+                            NULLIF(LTRIM(RTRIM(o.City)), ''),
+                            NULLIF(LTRIM(RTRIM(CONCAT(o.State, CASE WHEN NULLIF(o.PostalCode,'') IS NOT NULL THEN ' ' + o.PostalCode ELSE '' END))), '')
+                          ) AS FullAddress,r.Rating,R.ReviewText,convert(VARCHAR, r.CreatedAT, 0) AS reviewdate
+                        FROM dbo.Orders o
+                        LEFT JOIN dbo.Users         u ON u.UserID = o.UserID
+                        LEFT JOIN dbo.Professionals p ON p.ProfessionalID = o.ProfessionalID
+                        LEFT JOIN dbo.Categories    c ON c.CategoryID = o.CategoryID
+                        LEFT JOIN dbo.Reviews    r ON r.OrderID = o.OrderID
+                        WHERE o.UserID = @UserID
+                        ORDER BY o.Created_At DESC;
+                    ";
+
+                    using (var cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@UserID", userId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                orders.Add(new OrderDto(
+                                    (int)reader.GetInt64(0),
+                                    (int)reader.GetInt64(1),
+                                    reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    reader.GetDateTime(5),
+                                    reader.GetDecimal(6),
+                                    reader.GetDecimal(7),
+                                    reader.GetDecimal(8),
+                                    reader.GetInt32(9),
+                                    reader.GetInt32(10),
+                                    reader.GetDateTime(11),
+                                    reader.IsDBNull(12) ? "" : reader.GetString(12),
+                                    reader.IsDBNull(13) ? null : (int?)reader.GetByte(13),
+                                    reader.IsDBNull(14) ? null : reader.GetString(14),
+                                    reader.IsDBNull(15) ? null : reader.GetString(15)
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load orders: " + ex.Message);
+            }
+        }
+
+        public record CategoryDto(int Id, string Name, string? ImagePath);
+        public record OrderDto(
+            int OrderID,
+            int UserID,
+            string CustomerName,
+            string CompanyName,
+            string CategoryName,
+            DateTime ScheduledStart,
+            decimal Subtotal,
+            decimal TaxAmount,
+            decimal DiscountAmount,
+            int PaymentStatus,
+            int OrderStatus,
+            DateTime CreatedAt,
+            string FullAddress,
+            int? Rating,
+            string? ReviewText,
+            string? ReviewDate
+        );
+        public record RegisterRequest(string FullName, string Email, string Phone, string PasswordHash, string? Confirm);
+        public record LoginRequest(string Email, string PasswordHash);
+        public record PendingRegistration(string FullName, string Email, string Phone, byte[] PasswordHash, string Otp, DateTime Expiry);
+        public record VerifyOtpRequest(string Email, string Otp);
+        public record ProfessionalRegisterRequest(string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode, string PasswordHash);
+        public record ProfessionalLoginRequest(string Email, string PasswordHash);
+        // GET /api/data/reviews?professionalId=1
+        [HttpGet("reviews")]
+        public IActionResult GetReviews([FromQuery] int professionalId)
+        {
+            try
+            {
+                var reviews = new List<ReviewDto>();
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    var query = @"
+                        SELECT u.FullName,U.Email,r.Rating,R.ReviewText,R.IsVerified,
+                        convert(VARCHAR, r.CreatedAT, 0) AS reviewdate FROM Reviews r
+                        INNER JOIN users u ON u.userid = r.customerID WHERE professionalID =@ProfessionalID
+                         ORDER BY reviewdate desc
+                    ";
+
+                    using (var cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@ProfessionalID", professionalId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                reviews.Add(new ReviewDto(
+                                    reader.GetString(0),
+                                    reader.GetString(1),
+                                    (int)reader.GetByte(2),
+                                    reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    reader.GetBoolean(4),
+                                    reader.GetString(5)
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                return Ok(reviews);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load reviews: " + ex.Message);
+            }
+        }
+
+        public record ProfessionalDto(int ProfessionalID, string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode, decimal Ratings);
+        public record ServiceDto(int ServiceID, int ProfessionalID, int CategoryID, string ServiceName, string Title, decimal Price, int? EstimatedHours, string Description, bool IsActive);
+        public record ReviewDto(string FullName, string Email, int Rating, string ReviewText, bool IsVerified, string ReviewDate);
+        public record UserProfileDto(int UserID, string FullName, string Email, string Phone);
     }
 }
