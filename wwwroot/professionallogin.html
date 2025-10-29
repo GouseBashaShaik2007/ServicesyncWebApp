@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en" ng-app="myApp">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Service Sync – Home Services, Done Right</title>
+  <meta name="description" content="Service Sync connects you with vetted pros for home services like cleaning, lawn care, plumbing, and appliance repair with instant booking and transparent pricing." />
+
+  <!-- Favicons -->
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Nunito:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="assets/css/main.css" rel="stylesheet">
+</head>
+<body ng-controller="mainController">
+  <!-- Nav -->
+  <nav class="navbar navbar-expand-lg fixed-top shadow-sm" style="z-index: 1050;">
+    <div class="container" >
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#!/pllogin">
+        <img src="assets/img/ss_logo.png" alt="Service Sync logo" />
+        <span class="fw-semibold">Service Sync</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container my-5 pt-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card shadow">
+          <div class="card-body p-4">
+            <h2 class="card-title text-center mb-4">Professional Portal</h2>
+            <div class="d-grid gap-3">
+              <button class="btn  btn-outline-secondary btn-lg" ng-click="showNewForm = true; showSigninForm = false">New</button>
+              <button class="btn  btn-outline-secondary btn-lg" ng-click="showSigninForm = true; showNewForm = false">Signin Professional</button>
+            </div>
+
+            <!-- New Professional Form -->
+            <div ng-show="showNewForm" class="mt-4">
+              <h4 class="mb-3">Register as Professional</h4>
+              <form ng-submit="submitProfessionalEnquiry()">
+                <div class="mb-3">
+                  <label for="fullname" class="form-label">Full Name</label>
+                  <input type="text" class="form-control" id="fullname" ng-model="newProfessional.FullName" required>
+                </div>
+                <div class="mb-3">
+                  <label for="companyname" class="form-label">Company Name</label>
+                  <input type="text" class="form-control" id="companyname" ng-model="newProfessional.CompanyName" required>
+                </div>
+                <div class="mb-3">
+                  <label for="email" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="email" ng-model="newProfessional.Email" required>
+                </div>
+                <div class="mb-3">
+                  <label for="phone" class="form-label">Phone</label>
+                  <input type="tel" class="form-control" id="phone" ng-model="newProfessional.Phone" required>
+                </div>
+                <div class="mb-3">
+                  <label for="address" class="form-label">Address</label>
+                  <input type="text" class="form-control" id="address" ng-model="newProfessional.Address1" required>
+                </div>
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label for="city" class="form-label">City</label>
+                    <input type="text" class="form-control" id="city" ng-model="newProfessional.City" required>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="state" class="form-label">State</label>
+                    <input type="text" class="form-control" id="state" ng-model="newProfessional.State" required>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="postalcode" class="form-label">Postal Code</label>
+                    <input type="text" class="form-control" id="postalcode" ng-model="newProfessional.PostalCode" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100" ng-disabled="enquirySubmitting">
+                  <span ng-show="enquirySubmitting">Submitting...</span>
+                  <span ng-hide="enquirySubmitting">Submit</span>
+                </button>
+              </form>
+              <div ng-show="enquiryMessage" class="alert alert-success mt-3">{{enquiryMessage}}</div>
+            </div>
+
+            <!-- Signin Form -->
+            <div ng-show="showSigninForm" class="mt-4">
+              <h4 class="mb-3">Sign In</h4>
+              <form ng-submit="professionalLogin()">
+                <div class="mb-3">
+                  <label for="signinEmail" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="signinEmail" ng-model="signinProfessional.Email" required>
+                </div>
+                <div class="mb-3">
+                  <label for="signinPassword" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="signinPassword" ng-model="signinProfessional.Password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" ng-disabled="signinSubmitting">
+                  <span ng-show="signinSubmitting">Signing In...</span>
+                  <span ng-hide="signinSubmitting">Sign In</span>
+                </button>
+              </form>
+              <div ng-show="signinError" class="alert alert-danger mt-3">{{signinError}}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="py-5 mt-4">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img src="assets/img/ss_logo.png" alt="Service Sync logo" style="height:28px" />
+            <span class="fw-semibold text-white">Service Sync</span>
+          </div>
+          <p class="small mb-0">Trusted home services with transparent pricing and instant booking.</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <div class="small">© <span id="year"></span> Service Sync. All rights reserved.</div>
+          <div class="small"><a href="#">Terms</a> · <a href="#">Privacy</a></div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init({ once: true, duration: 700, offset: 120 });
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

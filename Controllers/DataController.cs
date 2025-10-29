@@ -6,6 +6,7 @@ using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
 using System.Linq;
+using System.Text.Json.Serialization;
 using ServicesyncWebApp.Services;
 
 namespace ServicesyncWebApp.Controllers
@@ -513,7 +514,8 @@ namespace ServicesyncWebApp.Controllers
                             )), ''),
                             NULLIF(LTRIM(RTRIM(o.City)), ''),
                             NULLIF(LTRIM(RTRIM(CONCAT(o.State, CASE WHEN NULLIF(o.PostalCode,'') IS NOT NULL THEN ' ' + o.PostalCode ELSE '' END))), '')
-                          ) AS FullAddress,r.Rating,R.ReviewText,convert(VARCHAR, r.CreatedAT, 0) AS reviewdate
+                          ) AS FullAddress,r.Rating,R.ReviewText,convert(VARCHAR, r.CreatedAT, 0) AS reviewdate,
+                          p.ProfessionalID
                         FROM dbo.Orders o
                         LEFT JOIN dbo.Users         u ON u.UserID = o.UserID
                         LEFT JOIN dbo.Professionals p ON p.ProfessionalID = o.ProfessionalID
@@ -547,7 +549,8 @@ namespace ServicesyncWebApp.Controllers
                                     reader.IsDBNull(12) ? "" : reader.GetString(12),
                                     reader.IsDBNull(13) ? null : (int?)reader.GetByte(13),
                                     reader.IsDBNull(14) ? null : reader.GetString(14),
-                                    reader.IsDBNull(15) ? null : reader.GetString(15)
+                                    reader.IsDBNull(15) ? null : reader.GetString(15),
+                                    reader.GetInt32(16)
                                 ));
                             }
                         }
@@ -559,6 +562,87 @@ namespace ServicesyncWebApp.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, "Failed to load orders: " + ex.Message);
+            }
+        }
+
+        // GET /api/data/getprofessionalorders?professionalId=1
+        [HttpGet("getprofessionalorders")]
+        public IActionResult GetProfessionalOrders([FromQuery] int professionalId)
+        {
+            try
+            {
+                var orders = new List<OrderDto>();
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    var query = @"
+                        SELECT
+                          o.OrderID,
+                          o.UserID,
+                          u.FullName AS CustomerName,
+                          p.CompanyName,
+                          c.CategoryName,
+                          o.ScheduledStart,
+                          o.Subtotal,
+                          o.TaxAmount,
+                          o.DiscountAmount,
+                          o.PaymentStatus,
+                          o.OrderStatus,
+                          o.Created_At,
+                          CONCAT_WS(', ',
+                            NULLIF(LTRIM(RTRIM(
+                              o.ServiceAddress1 + CASE WHEN NULLIF(o.ServiceAddress2,'') IS NOT NULL THEN ' ' + o.ServiceAddress2 ELSE '' END
+                            )), ''),
+                            NULLIF(LTRIM(RTRIM(o.City)), ''),
+                            NULLIF(LTRIM(RTRIM(CONCAT(o.State, CASE WHEN NULLIF(o.PostalCode,'') IS NOT NULL THEN ' ' + o.PostalCode ELSE '' END))), '')
+                          ) AS FullAddress,r.Rating,R.ReviewText,convert(VARCHAR, r.CreatedAT, 0) AS reviewdate,p.ProfessionalID
+                        FROM dbo.Orders o
+                        LEFT JOIN dbo.Users         u ON u.UserID = o.UserID
+                        LEFT JOIN dbo.Professionals p ON p.ProfessionalID = o.ProfessionalID
+                        LEFT JOIN dbo.Categories    c ON c.CategoryID = o.CategoryID
+                        LEFT JOIN dbo.Reviews    r ON r.OrderID = o.OrderID
+                        WHERE p.ProfessionalID = @ProfessionalID
+                        ORDER BY o.Created_At DESC;
+                    ";
+
+                    using (var cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@ProfessionalID", professionalId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                orders.Add(new OrderDto(
+                                    (int)reader.GetInt64(0),
+                                    (int)reader.GetInt64(1),
+                                    reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    reader.GetDateTime(5),
+                                    reader.GetDecimal(6),
+                                    reader.GetDecimal(7),
+                                    reader.GetDecimal(8),
+                                    reader.GetInt32(9),
+                                    reader.GetInt32(10),
+                                    reader.GetDateTime(11),
+                                    reader.IsDBNull(12) ? "" : reader.GetString(12),
+                                    reader.IsDBNull(13) ? null : (int?)reader.GetByte(13),
+                                    reader.IsDBNull(14) ? null : reader.GetString(14),
+                                    reader.IsDBNull(15) ? null : reader.GetString(15),
+                                    reader.GetInt32(16)
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                return Ok(orders);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to load professional orders: " + ex.Message);
             }
         }
 
@@ -579,14 +663,124 @@ namespace ServicesyncWebApp.Controllers
             string FullAddress,
             int? Rating,
             string? ReviewText,
-            string? ReviewDate
+            string? ReviewDate,
+            int ProfessionalID
         );
         public record RegisterRequest(string FullName, string Email, string Phone, string PasswordHash, string? Confirm);
         public record LoginRequest(string Email, string PasswordHash);
         public record PendingRegistration(string FullName, string Email, string Phone, byte[] PasswordHash, string Otp, DateTime Expiry);
         public record VerifyOtpRequest(string Email, string Otp);
         public record ProfessionalRegisterRequest(string CompanyName, string Email, string Phone, string Address1, string Address2, string City, string State, string PostalCode, string PasswordHash);
-        public record ProfessionalLoginRequest(string Email, string PasswordHash);
+        public record ProfessionalLoginRequest(string Email, string Password);
+        public record ProfessionalEnquiryRequest(string FullName, string CompanyName, string Email, string Phone, string Address1, string City, string State, string PostalCode);
+
+        // POST /api/data/professional-enquiry
+        [HttpPost("professional-enquiry")]
+        public IActionResult ProfessionalEnquiry([FromBody] ProfessionalEnquiryRequest request)
+        {
+            try
+            {
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.FullName) ||
+                    string.IsNullOrWhiteSpace(request.CompanyName) ||
+                    string.IsNullOrWhiteSpace(request.Email) ||
+                    string.IsNullOrWhiteSpace(request.Phone) ||
+                    string.IsNullOrWhiteSpace(request.Address1) ||
+                    string.IsNullOrWhiteSpace(request.City) ||
+                    string.IsNullOrWhiteSpace(request.State) ||
+                    string.IsNullOrWhiteSpace(request.PostalCode))
+                {
+                    return BadRequest(new { error = "All fields are required." });
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    using (var insertCmd = new SqlCommand(
+                        "INSERT INTO dbo.ProfessionalsEnquiry (FullName, CompanyName, Email, Phone, Address1, City, State, PostalCode) VALUES (@FullName, @CompanyName, @Email, @Phone, @Address1, @City, @State, @PostalCode)",
+                        con))
+                    {
+                        insertCmd.Parameters.AddWithValue("@FullName", request.FullName);
+                        insertCmd.Parameters.AddWithValue("@CompanyName", request.CompanyName);
+                        insertCmd.Parameters.AddWithValue("@Email", request.Email);
+                        insertCmd.Parameters.AddWithValue("@Phone", request.Phone);
+                        insertCmd.Parameters.AddWithValue("@Address1", request.Address1);
+                        insertCmd.Parameters.AddWithValue("@City", request.City);
+                        insertCmd.Parameters.AddWithValue("@State", request.State);
+                        insertCmd.Parameters.AddWithValue("@PostalCode", request.PostalCode);
+
+                        insertCmd.ExecuteNonQuery();
+                    }
+                }
+
+                return Ok(new { message = "Our team will contact you back." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Enquiry submission failed: " + ex.Message);
+            }
+        }
+
+        // POST /api/data/professional-login
+        [HttpPost("professional-login")]
+        public IActionResult ProfessionalLogin([FromBody] ProfessionalLoginRequest request)
+        {
+            try
+            {
+                if (request == null ||
+                    string.IsNullOrWhiteSpace(request.Email) ||  
+                    string.IsNullOrWhiteSpace(request.Password)) 
+                {
+                    return BadRequest("Email and password are required.");
+                }
+
+                Console.WriteLine("Professional login attempt for email: " + request.Email);
+
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    // Get professional by email and password hash
+                    using (var cmd = new SqlCommand(
+                        "SELECT ProfessionalID, CompanyName, Email, Phone FROM dbo.Professionals WHERE Email = @Email AND Password = @Password",
+                        con))
+                    {
+                        cmd.Parameters.AddWithValue("@Email", request.Email);
+                        cmd.Parameters.AddWithValue("@Password", request.Password);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                var professional = new
+                                {
+                                    ProfessionalID = reader.GetInt32(0),
+                                    CompanyName = reader.GetString(1),
+                                    Email = reader.GetString(2),
+                                    Phone = reader.GetString(3)
+                                };
+
+                                Console.WriteLine("Professional found: " + professional.ProfessionalID + ", " + professional.CompanyName);
+                                return Ok(new { success = true, professional = professional });
+                            }
+                            else
+                            {
+                                Console.WriteLine("No professional found for email: " + request.Email);
+                                return BadRequest("Invalid email or password.");
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Professional login error: " + ex.Message);
+                return StatusCode(500, "Login failed: " + ex.Message);
+            }
+        }
+
         // GET /api/data/reviews?professionalId=1
         [HttpGet("reviews")]
         public IActionResult GetReviews([FromQuery] int professionalId)
@@ -638,5 +832,101 @@ namespace ServicesyncWebApp.Controllers
         public record ServiceDto(int ServiceID, int ProfessionalID, int CategoryID, string ServiceName, string Title, decimal Price, int? EstimatedHours, string Description, bool IsActive);
         public record ReviewDto(string FullName, string Email, int Rating, string ReviewText, bool IsVerified, string ReviewDate);
         public record UserProfileDto(int UserID, string FullName, string Email, string Phone);
+
+        // POST /api/data/updateorderstatus
+        [HttpPost("updateorderstatus")]
+        public IActionResult UpdateOrderStatus([FromBody] UpdateOrderStatusRequest request)
+        {
+            try
+            {
+                if (request == null || request.OrderID <= 0 || request.OrderStatus < 0 || request.OrderStatus > 2)
+                {
+                    return BadRequest(new { error = "Invalid order status update data." });
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    using (var cmd = new SqlCommand(
+                        "UPDATE dbo.Orders SET OrderStatus = @OrderStatus WHERE OrderID = @OrderID",
+                        con))
+                    {
+                        cmd.Parameters.AddWithValue("@OrderID", request.OrderID);
+                        cmd.Parameters.AddWithValue("@OrderStatus", request.OrderStatus);
+
+                        var rowsAffected = cmd.ExecuteNonQuery();
+                        if (rowsAffected == 0)
+                        {
+                            return NotFound("Order not found.");
+                        }
+
+                        return Ok(new { message = "Order status updated successfully." });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to update order status: " + ex.Message);
+            }
+        }
+
+        public record UpdateOrderStatusRequest(int OrderID, int OrderStatus);
+
+        // POST /api/data/submitreview
+        [HttpPost("submitreview")]
+        public IActionResult SubmitReview([FromBody] SubmitReviewRequest request)
+        {
+            try
+            {
+                Console.WriteLine("SubmitReview request: " + System.Text.Json.JsonSerializer.Serialize(request));
+                Console.WriteLine($"CustomerID: {request?.CustomerID}, OrderID: {request?.OrderID}, ProfessionalID: {request?.ProfessionalID}, Rating: {request?.Rating}, ReviewText: '{request?.ReviewText}'");
+
+                if (request == null ||
+                    request.CustomerID <= 0 ||
+                    request.OrderID <= 0 ||
+                    request.ProfessionalID <= 0 ||
+                    request.Rating == null ||
+                    string.IsNullOrWhiteSpace(request.ReviewText))
+                {
+                    return BadRequest(new { error = "Invalid review data. All fields are required." });
+                }
+
+                if (request.Rating < 1 || request.Rating > 5)
+                {
+                    return BadRequest(new { error = "Rating must be a number between 1 and 5." });
+                }
+
+                using (var con = new SqlConnection(_config.GetConnectionString("DefaultConnection")))
+                {
+                    con.Open();
+
+                    using (var cmd = new SqlCommand(
+                        @"INSERT INTO dbo.Reviews (CustomerID, OrderID, ProfessionalID, Rating, ReviewText, IsVerified, IsPublic, CreatedAT)
+                        VALUES (@CustomerID, @OrderID, @ProfessionalID, @Rating, @ReviewText, @IsVerified, @IsPublic, @CreatedAT)",
+                        con))
+                    {
+                        cmd.Parameters.AddWithValue("@CustomerID", request.CustomerID);
+                        cmd.Parameters.AddWithValue("@OrderID", request.OrderID);
+                        cmd.Parameters.AddWithValue("@ProfessionalID", request.ProfessionalID);
+                        cmd.Parameters.AddWithValue("@Rating", request.Rating);
+                        cmd.Parameters.AddWithValue("@ReviewText", request.ReviewText);
+                        cmd.Parameters.AddWithValue("@IsVerified", request.IsVerified ?? true);
+                        cmd.Parameters.AddWithValue("@IsPublic", request.IsPublic ?? true);
+                        cmd.Parameters.AddWithValue("@CreatedAT", DateTime.UtcNow);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                return Ok(new { message = "Review submitted successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Failed to submit review: " + ex.Message);
+            }
+        }
+
+        public record SubmitReviewRequest(int? CustomerID, int? OrderID, int? ProfessionalID, int? Rating, string? ReviewText, bool? IsVerified, bool? IsPublic);
     }
 }

@@ -20,7 +20,8 @@ app.config(function($routeProvider, $locationProvider) {
     .when("/orders", { templateUrl: "orders.html", controller: "logincontroller" })
     .when("/viewprofile", { templateUrl: "viewprofile.html", controller: "logincontroller" })
     .when("/register",    { templateUrl: "register.html",    controller: "mainController" })
-    .when("/professional",{ templateUrl: "profesional.html", controller: "mainController" })
+   // .when("/professional",{ templateUrl: "profesional.html", controller: "mainController" })
+    .when("/pllogin",{ templateUrl: "professionallogin.html", controller: "mainController" })
     .when("/professional/:ProID",{ templateUrl: "profesional.html", controller: "mainController" })
     .when("/service-detail",{ templateUrl: "servicedetail.html", controller: "servicecontroller" })
     .otherwise({ redirectTo: "/" });
@@ -61,6 +62,79 @@ app.controller('mainController', function ($scope, $location, $routeParams, $htt
 
   $scope.professional = { CompanyName:'', Address:'', CategoryIds:[] };
   $scope.loggedInUser = null;
+
+   // Professional enquiry and login
+  $scope.newProfessional = {};
+  $scope.signinProfessional = {};
+  $scope.showNewForm = false;
+  $scope.showSigninForm = false;
+  $scope.enquirySubmitting = false;
+  $scope.signinSubmitting = false;
+  $scope.enquiryMessage = '';
+  $scope.signinError = '';
+
+  $scope.submitProfessionalEnquiry = function() {
+    console.log($scope.newProfessional);
+    $scope.enquirySubmitting = true;
+    $scope.enquiryMessage = '';
+
+    $http.post('/api/data/professional-enquiry', $scope.newProfessional)
+      .then(function(response) {
+        $scope.enquiryMessage = response.data.message;
+        $scope.newProfessional = {};
+        $scope.enquirySubmitting = false;
+      })
+      .catch(function(error) {
+        console.error('Enquiry submission failed:', error);
+        $scope.enquiryMessage = 'Submission failed. Please try again.';
+        $scope.enquirySubmitting = false;
+      });
+  };
+
+  $scope.professionalLogin = function() {
+    $scope.signinSubmitting = true;
+    $scope.signinError = '';
+
+    $http.post('/api/data/professional-login', $scope.signinProfessional)
+      .then(function(response) {
+        if (response.data.success) {
+          localStorage.setItem('professional', JSON.stringify(response.data.professional));
+          $location.path('/professional/' + response.data.professional.professionalID);
+        }
+      })
+      .catch(function(error) {
+        console.error('Professional login failed:', error);
+        $scope.signinError = error.data?.error || 'Login failed. Please check your credentials.';
+        $scope.signinSubmitting = false;
+      });
+  };
+
+  $scope.loadprofessionalorder = function(ProID) {
+    console.log(ProID);
+    $http.get('/api/data/getprofessionalorders?professionalId=' + ProID)
+      .then(function (res) {
+        $scope.professionalorders = res.data;
+        if (typeof res.data === "string" && res.data.indexOf("<!DOCTYPE html>") === 0) {
+          console.error("API returned HTML (SPA fallback). Check /api/* routing.");
+          $scope.professionalorders = [];
+        }
+      }, function (err) {
+        console.error("Error loading professional orders:", err);
+        $scope.professionalorders = [];
+      });
+  };
+
+  $scope.updateOrderStatus = function(orderId, newStatus) {
+    $http.post('/api/data/updateorderstatus', { OrderID: orderId, OrderStatus: newStatus })
+      .then(function (res) {
+        alert('Order status updated successfully!');
+        // Reload orders to reflect changes
+        $scope.loadprofessionalorder($scope.ProID);
+      }, function (err) {
+        console.error("Error updating order status:", err);
+        alert('Failed to update order status.');
+      });
+  };
 
   
   $scope.getCategories = function () {
@@ -224,6 +298,30 @@ app.controller('logincontroller', function ($scope, $location, $routeParams, $ht
         $scope.orders = [];
       });
   }
+  $scope.submitReview = function(order,review){
+   $scope.ratingdata = {};
+    $scope.ratingdata.ReviewText=review.reviewtext;
+    $scope.ratingdata.Rating=review.rating;
+    $scope.ratingdata.CustomerID=order.userID;
+    $scope.ratingdata.ProfessionalID=order.professionalID;
+    $scope.ratingdata.OrderID=order.orderID;
+    $scope.ratingdata.IsVerified = true;
+    $scope.ratingdata.IsPublic = true;
+    console.log($scope.ratingdata);
+
+    $http.post('/api/data/submitreview', $scope.ratingdata, {
+      headers: { 'Content-Type': 'application/json' }
+    }).then(function (res) {
+      var ok = res.data && res.data.message;
+      $scope.status = { ok: !!ok, err: !ok, msg: ok ? res.data.message : 'Review submission failed ❌' };
+      alert($scope.status.msg);
+    }, function (error) {
+
+      var msg = (error && error.data) || 'Review submission failed ❌';
+      $scope.status = { ok: false, err: true, msg: msg };
+      alert($scope.status.msg);
+    });
+  };
 
   $scope.viewprofile = function(user) {
      $scope.id=user
@@ -244,6 +342,7 @@ app.controller('logincontroller', function ($scope, $location, $routeParams, $ht
   $scope.signOut    = function() {
     // Clear loggedInUser from localStorage and $rootScope on logout
     localStorage.removeItem('loggedInUser');
+    localStorage.removeItem('professional');
     if (window.angular) {
       var $rootScope = angular.element(document.body).injector().get('$rootScope');
       $rootScope.$apply(function() {
@@ -252,6 +351,8 @@ app.controller('logincontroller', function ($scope, $location, $routeParams, $ht
     }
     $location.path('/');
   };
+
+ 
 });
 
 /* -------------------- service list + detail -------------------- */
@@ -425,8 +526,6 @@ app.controller('servicecontroller', function ($scope, $location, $routeParams, $
     //     return; // Payment failed, do not proceed with order
     //   }
     // }
-    alert($scope.user.UserID)
-return false;
     var orderData = {
       UserID: $scope.user.UserID || 16,
       ProfessionalID: 1,//$scope.selectedProfessional.professionalID || $scope.selectedProfessional.ProfessionalID,

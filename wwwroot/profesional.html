@@ -44,8 +44,6 @@
             <ul class="dropdown-menu" aria-labelledby="userDropdown">
               <li><a class="dropdown-item" href="#!/viewprofile" >View Profile</a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#!/orders" >Orders</a></li>
-              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="#" ng-click="signOut()">Sign Out</a></li>
             </ul>
           </li>
@@ -55,64 +53,174 @@
   </nav>
 
   <!-- Orders section -->
-   <div class="container my-5">
+  <div class="container my-5" ng-init="loadprofessionalorder(ProID)">
     <div class="row justify-content-center">
-      <div class="col-lg-8">
-        <!-- Order Details Card -->
-        <div class="card">
-          <div class="card-header bg-primary text-white text-center">
-            <h4 class="mb-0">Order Details</h4>
+      <div class="col-lg-10">
+        <h2 class="text-center mb-4">Professional Orders</h2>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="orderTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="true">Pending</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">Completed</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="denied-tab" data-bs-toggle="tab" data-bs-target="#denied" type="button" role="tab" aria-controls="denied" aria-selected="false">Denied</button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="orderTabsContent">
+          <!-- Pending Orders -->
+          <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+            <div class="row mt-4">
+              <div class="col-12" ng-repeat="order in professionalorders | filter: {orderStatus: 0}">
+                <div class="card mb-3">
+                  <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Order #{{order.orderID}}</h5>
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Customer:</strong> {{order.customerName}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Service:</strong> {{order.categoryName}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Scheduled:</strong> {{order.scheduledStart | date:'medium'}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Address:</strong> {{order.fullAddress}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Subtotal:</strong> ${{order.subtotal}}
+                      </div>
+                      <div class="col-md-6" ng-if="order.rating">
+                        <strong>Rating:</strong> {{order.rating}}/5
+                      </div>
+                    </div>
+                    <div ng-if="order.reviewText" class="mb-2">
+                      <strong>Review:</strong> {{order.reviewText}}
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                      <button class="btn btn-success btn-sm status-btn" ng-click="updateOrderStatus(order.orderID, 1)">
+                        <i class="bi bi-check-circle me-1"></i> Mark Completed
+                      </button>
+                      <button class="btn btn-danger btn-sm status-btn" ng-click="updateOrderStatus(order.orderID, 2)">
+                        <i class="bi bi-x-circle me-1"></i> Mark Denied
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12" ng-if="(professionalorders | filter: {orderStatus: 0}).length === 0">
+                <div class="alert alert-info text-center">No pending orders.</div>
+              </div>
+            </div>
           </div>
-          <div class="card-body p-4">
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <h6 class="text-muted mb-1">Order ID</h6>
-                <p class="fw-semibold">#ORD1023</p>
+
+          <!-- Completed Orders -->
+          <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+            <div class="row mt-4">
+              <div class="col-12" ng-repeat="order in professionalorders | filter: {orderStatus: 1}">
+                <div class="card mb-3">
+                  <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Order #{{order.orderID}}</h5>
+                      <span class="badge bg-success">Completed</span>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Customer:</strong> {{order.customerName}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Service:</strong> {{order.categoryName}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Scheduled:</strong> {{order.scheduledStart | date:'medium'}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Address:</strong> {{order.fullAddress}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Subtotal:</strong> ${{order.subtotal}}
+                      </div>
+                      <div class="col-md-6" ng-if="order.rating">
+                        <strong>Rating:</strong> {{order.rating}}/5
+                      </div>
+                    </div>
+                    <div ng-if="order.reviewText" class="mb-2">
+                      <strong>Review:</strong> {{order.reviewText}}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 text-md-end">
-                <h6 class="text-muted mb-1">Status</h6>
-                <span class="badge bg-warning text-dark fs-6">Pending</span>
+              <div class="col-12" ng-if="(professionalorders | filter: {orderStatus: 1}).length === 0">
+                <div class="alert alert-info text-center">No completed orders.</div>
               </div>
             </div>
+          </div>
 
-            <hr>
-
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <h6 class="text-muted mb-1">Customer Name</h6>
-                <p class="fw-semibold">John Doe</p>
+          <!-- Denied Orders -->
+          <div class="tab-pane fade" id="denied" role="tabpanel" aria-labelledby="denied-tab">
+            <div class="row mt-4">
+              <div class="col-12" ng-repeat="order in professionalorders | filter: {orderStatus: 2}">
+                <div class="card mb-3">
+                  <div class="card-header bg-danger text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Order #{{order.orderID}}</h5>
+                      <span class="badge bg-danger">Denied</span>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Customer:</strong> {{order.customerName}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Service:</strong> {{order.categoryName}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Scheduled:</strong> {{order.scheduledStart | date:'medium'}}
+                      </div>
+                      <div class="col-md-6">
+                        <strong>Address:</strong> {{order.fullAddress}}
+                      </div>
+                    </div>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <strong>Subtotal:</strong> ${{order.subtotal}}
+                      </div>
+                      <div class="col-md-6" ng-if="order.rating">
+                        <strong>Rating:</strong> {{order.rating}}/5
+                      </div>
+                    </div>
+                    <div ng-if="order.reviewText" class="mb-2">
+                      <strong>Review:</strong> {{order.reviewText}}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6">
-                <h6 class="text-muted mb-1">Service</h6>
-                <p class="fw-semibold">AC Repair</p>
+              <div class="col-12" ng-if="(professionalorders | filter: {orderStatus: 2}).length === 0">
+                <div class="alert alert-info text-center">No denied orders.</div>
               </div>
-            </div>
-
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <h6 class="text-muted mb-1">Scheduled Date</h6>
-                <p class="fw-semibold">October 18, 2025 - 10:00 AM</p>
-              </div>
-              <div class="col-md-6">
-                <h6 class="text-muted mb-1">Address</h6>
-                <p class="fw-semibold">123 Elm Street, Erie, PA</p>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <h6 class="text-muted mb-1">Notes</h6>
-              <p class="fw-normal">Customer requested technician to call 15 minutes before arrival.</p>
-            </div>
-
-            <hr>
-
-            <div class="d-flex justify-content-end gap-3">
-              <button class="btn btn-success status-btn">
-                <i class="bi bi-check-circle me-1"></i> Completed
-              </button>
-              <button class="btn btn-danger status-btn">
-                <i class="bi bi-x-circle me-1"></i> Denied
-              </button>
             </div>
           </div>
         </div>
